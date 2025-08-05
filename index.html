@@ -4,24 +4,42 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Run Mastery AI</title>
-  <link rel="stylesheet" href="styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <header>
-    <h1>Run Mastery AI</h1>
+    <div class="brand">
+      <div class="brand-icon">🏃‍♂️</div>
+      <span class="brand-title">Run Mastery</span>
+    </div>
+    <nav>
+      <a href="#">Programs</a>
+      <a href="#">Insights</a>
+      <a href="#">For Coaches</a>
+      <a href="#">About</a>
+      <a href="#">Log in</a>
+      <a href="#" class="cta-btn">Get started</a>
+    </nav>
   </header>
 
-  <main>
-    <div id="chat-wrapper">
-      <div id="messages">
-        <div class="message bot">Hi! What can I do for you?</div>
-      </div>
-      <div id="input-area">
-        <textarea id="userInput" placeholder="Type your message…" maxlength="1000"></textarea>
-        <button onclick="sendMessage()">Send</button>
+  <div class="intro">
+    <h1>RUN MASTERY</h1>
+    <p>Chat with your AI coach to <span id="typewriter"></span></p>
+  </div>
+
+  <div id="chat-wrapper">
+    <div id="messages">
+      <div class="message bot">
+        <span class="bot-avatar"></span>
+        Hi! What can I do for you?
       </div>
     </div>
-  </main>
+    <div id="input-area">
+      <textarea id="userInput" placeholder="Type your message…" maxlength="1000" onkeydown="handleKey(event)"></textarea>
+      <button onclick="sendMessage()">Send</button>
+    </div>
+  </div>
 
   <script src="script.js"></script>
 </body>
