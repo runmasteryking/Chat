@@ -1,3 +1,47 @@
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey: "DIN_API_NYCKEL_HÄR",
+  authDomain: "DITT_PROJECT.firebaseapp.com",
+  projectId: "DITT_PROJECT_ID",
+  storageBucket: "DITT_PROJECT.appspot.com",
+  messagingSenderId: "XXXXXXXX",
+  appId: "XXXXXXXX"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
+
+const loginBtn = document.getElementById("loginBtn");
+const chatWrapper = document.getElementById("chat-wrapper");
+
+loginBtn.addEventListener("click", () => {
+  signInWithPopup(auth, provider)
+    .then(result => {
+      const user = result.user;
+      console.log("✅ Logged in:", user.displayName, user.email);
+      loginBtn.style.display = "none";
+      chatWrapper.style.display = "flex";
+    })
+    .catch(error => {
+      console.error("❌ Login failed:", error);
+    });
+});
+
+onAuthStateChanged(auth, user => {
+  if (user) {
+    loginBtn.style.display = "none";
+    chatWrapper.style.display = "flex";
+    console.log("🔁 Already logged in:", user.displayName);
+  }
+});
+
+
+// -------------------------------
+// TYPEWRITER ANIMATION
+// -------------------------------
 const phrases = [
   "reach your goals",
   "beat 10K under 50 mins",
@@ -28,6 +72,9 @@ function eraseText(i) {
 }
 typeText(phrases[currentPhrase]);
 
+// -------------------------------
+// CHAT FUNCTIONALITY
+// -------------------------------
 function handleKey(event) {
   if (event.key === 'Enter' && !event.shiftKey) {
     event.preventDefault();
