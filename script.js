@@ -1,29 +1,38 @@
+// -------------------------------
+// IMPORTS & FIREBASE INIT
+// -------------------------------
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 const firebaseConfig = {
-  apiKey: "DIN_API_NYCKEL_HÄR",
-  authDomain: "DITT_PROJECT.firebaseapp.com",
-  projectId: "DITT_PROJECT_ID",
-  storageBucket: "DITT_PROJECT.appspot.com",
-  messagingSenderId: "XXXXXXXX",
-  appId: "XXXXXXXX"
+  apiKey: "AIzaSyBx8seK9f-ZTV3JemDQ9sdTZkoiwSTvtqI",
+  authDomain: "run-mastery-ai.firebaseapp.com",
+  projectId: "run-mastery-ai",
+  storageBucket: "run-mastery-ai.appspot.com",
+  messagingSenderId: "599923677042",
+  appId: "1:599923677042:web:bc968a22483c7b3f916feb"
 };
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
 
+// -------------------------------
+// DOM ELEMENTS
+// -------------------------------
 const loginBtn = document.getElementById("loginBtn");
 const chatWrapper = document.getElementById("chat-wrapper");
+const intro = document.getElementById("intro");
 
+// -------------------------------
+// AUTH LOGIC
+// -------------------------------
 loginBtn.addEventListener("click", () => {
   signInWithPopup(auth, provider)
     .then(result => {
       const user = result.user;
-      console.log("✅ Logged in:", user.displayName, user.email);
-      loginBtn.style.display = "none";
-      chatWrapper.style.display = "flex";
+      console.log("✅ Logged in as", user.displayName);
+      showChatUI();
     })
     .catch(error => {
       console.error("❌ Login failed:", error);
@@ -32,12 +41,16 @@ loginBtn.addEventListener("click", () => {
 
 onAuthStateChanged(auth, user => {
   if (user) {
-    loginBtn.style.display = "none";
-    chatWrapper.style.display = "flex";
-    console.log("🔁 Already logged in:", user.displayName);
+    console.log("🔁 Already logged in as", user.displayName);
+    showChatUI();
   }
 });
 
+function showChatUI() {
+  loginBtn.style.display = "none";
+  intro.style.display = "none";
+  chatWrapper.style.display = "flex";
+}
 
 // -------------------------------
 // TYPEWRITER ANIMATION
@@ -49,6 +62,7 @@ const phrases = [
   "get faster and stronger",
   "train smarter – not harder"
 ];
+
 let currentPhrase = 0;
 const el = document.getElementById("typewriter");
 
@@ -75,6 +89,13 @@ typeText(phrases[currentPhrase]);
 // -------------------------------
 // CHAT FUNCTIONALITY
 // -------------------------------
+const input = document.getElementById("userInput");
+const sendBtn = document.getElementById("sendBtn");
+const messages = document.getElementById("messages");
+
+sendBtn.addEventListener("click", sendMessage);
+input.addEventListener("keydown", handleKey);
+
 function handleKey(event) {
   if (event.key === 'Enter' && !event.shiftKey) {
     event.preventDefault();
@@ -83,17 +104,10 @@ function handleKey(event) {
 }
 
 async function sendMessage() {
-  const input = document.getElementById("userInput");
   const text = input.value.trim();
   if (!text) return;
 
-  const messages = document.getElementById("messages");
-
-  const userMsg = document.createElement("div");
-  userMsg.className = "message user";
-  userMsg.textContent = text;
-  messages.appendChild(userMsg);
-
+  appendMessage("user", text);
   input.value = "";
   autoScroll();
 
@@ -101,28 +115,33 @@ async function sendMessage() {
   thinking.className = "message bot thinking";
   thinking.innerHTML = '<span class="bot-avatar">🤖</span><div class="dot"></div><div class="dot"></div><div class="dot"></div>';
   messages.appendChild(thinking);
+  autoScroll();
 
   try {
     const reply = await generateBotReply(text);
     thinking.remove();
-
-    const botMsg = document.createElement("div");
-    botMsg.className = "message bot";
-    botMsg.innerHTML = `<span class="bot-avatar">🤖</span>${reply}`;
-    messages.appendChild(botMsg);
-    autoScroll();
+    appendMessage("bot", reply);
   } catch (err) {
     thinking.remove();
-    const botMsg = document.createElement("div");
-    botMsg.className = "message bot";
-    botMsg.innerHTML = `<span class="bot-avatar">🤖</span>⚠️ Oops! Something went wrong.`;
-    messages.appendChild(botMsg);
-    autoScroll();
+    appendMessage("bot", "⚠️ Oops! Something went wrong.");
+    console.error(err);
   }
+
+  autoScroll();
+}
+
+function appendMessage(type, text) {
+  const msg = document.createElement("div");
+  msg.className = `message ${type}`;
+  if (type === "bot") {
+    msg.innerHTML = `<span class="bot-avatar">🤖</span>${text}`;
+  } else {
+    msg.textContent = text;
+  }
+  messages.appendChild(msg);
 }
 
 function autoScroll() {
-  const messages = document.getElementById("messages");
   messages.scrollTop = messages.scrollHeight;
 }
 
