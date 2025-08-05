@@ -6,11 +6,6 @@
   <title>Run Mastery AI</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css" />
-
-  <!-- Firebase SDKs -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"></script>
 </head>
 <body>
   <header>
@@ -28,7 +23,7 @@
     </nav>
   </header>
 
-  <div class="intro">
+  <div class="intro" id="intro">
     <h1>RUN MASTERY</h1>
     <p>Chat with your AI coach to <span id="typewriter"></span></p>
   </div>
@@ -42,10 +37,11 @@
     </div>
     <div id="input-area">
       <textarea id="userInput" placeholder="Type your message…" maxlength="1000" onkeydown="handleKey(event)"></textarea>
-      <button onclick="sendMessage()">Send</button>
+      <button id="sendBtn">Send</button>
     </div>
   </div>
 
+  <!-- Module scripts -->
   <script type="module" src="firebase-config.js"></script>
   <script type="module" src="script.js"></script>
 </body>
