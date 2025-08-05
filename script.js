@@ -1,9 +1,23 @@
 // -------------------------------
 // IMPORTS & FIREBASE INIT
 // -------------------------------
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import {
+  initializeApp
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import {
+  getAuth,
+  signInWithPopup,
+  GoogleAuthProvider,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
+// Firebase-konfiguration
 const firebaseConfig = {
   apiKey: "AIzaSyBx8seK9f-ZTV3JemDQ9sdTZkoiwSTvtqI",
   authDomain: "run-mastery-ai.firebaseapp.com",
@@ -16,6 +30,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
+const db = getFirestore(app);
 
 // -------------------------------
 // DOM ELEMENTS
@@ -25,13 +40,14 @@ const chatWrapper = document.getElementById("chat-wrapper");
 const intro = document.getElementById("intro");
 
 // -------------------------------
-// AUTH LOGIC
+// AUTH LOGIC + FIRESTORE USER SAVE
 // -------------------------------
 loginBtn.addEventListener("click", () => {
   signInWithPopup(auth, provider)
-    .then(result => {
+    .then(async result => {
       const user = result.user;
       console.log("✅ Logged in as", user.displayName);
+      await saveUserToFirestore(user);
       showChatUI();
     })
     .catch(error => {
@@ -39,13 +55,27 @@ loginBtn.addEventListener("click", () => {
     });
 });
 
-onAuthStateChanged(auth, user => {
+onAuthStateChanged(auth, async user => {
   if (user) {
     console.log("🔁 Already logged in as", user.displayName);
+    await saveUserToFirestore(user);
     showChatUI();
   }
 });
 
+async function saveUserToFirestore(user) {
+  const userRef = doc(db, "users", user.uid);
+  await setDoc(userRef, {
+    name: user.displayName || null,
+    email: user.email || null,
+    photoURL: user.photoURL || null,
+    lastLogin: serverTimestamp()
+  }, { merge: true });
+}
+
+// -------------------------------
+// UI CONTROL
+// -------------------------------
 function showChatUI() {
   loginBtn.style.display = "none";
   intro.style.display = "none";
