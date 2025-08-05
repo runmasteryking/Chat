@@ -35,7 +35,7 @@ function handleKey(event) {
   }
 }
 
-function sendMessage() {
+async function sendMessage() {
   const input = document.getElementById("userInput");
   const text = input.value.trim();
   if (!text) return;
@@ -55,14 +55,23 @@ function sendMessage() {
   thinking.innerHTML = '<span class="bot-avatar">🤖</span><div class="dot"></div><div class="dot"></div><div class="dot"></div>';
   messages.appendChild(thinking);
 
-  setTimeout(() => {
+  try {
+    const reply = await generateBotReply(text);
+    thinking.remove();
+
+    const botMsg = document.createElement("div");
+    botMsg.className = "message bot";
+    botMsg.innerHTML = `<span class="bot-avatar">🤖</span>${reply}`;
+    messages.appendChild(botMsg);
+    autoScroll();
+  } catch (err) {
     thinking.remove();
     const botMsg = document.createElement("div");
     botMsg.className = "message bot";
-    botMsg.innerHTML = '<span class="bot-avatar">🤖</span>' + generateBotReply(text);
+    botMsg.innerHTML = `<span class="bot-avatar">🤖</span>⚠️ Oops! Something went wrong.`;
     messages.appendChild(botMsg);
     autoScroll();
-  }, 1000);
+  }
 }
 
 function autoScroll() {
@@ -70,14 +79,13 @@ function autoScroll() {
   messages.scrollTop = messages.scrollHeight;
 }
 
-function generateBotReply(userText) {
-  if (/3x|3 times/i.test(userText)) {
-    return `Thanks! Here's a week 1 training proposal based on your input:<br><br>
-      ✓ Monday: 5K easy run<br>
-      ✓ Wednesday: 4×800m intervals<br>
-      ✓ Saturday: 8K distance<br><br>
-      Want to add rest days, pace targets or race dates?`;
-  } else {
-    return `🧠 Thanks! I’m building a personalized plan. Would you like to focus on speed, endurance, or injury-free training?`;
-  }
+async function generateBotReply(userText) {
+  const response = await fetch('/.netlify/functions/ask-gpt', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: userText })
+  });
+
+  const data = await response.json();
+  return data.reply || "Sorry, I couldn’t generate a reply.";
 }
