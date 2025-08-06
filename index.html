@@ -29,30 +29,19 @@
     <p>Chat with your AI coach to <span id="typewriter"></span></p>
   </div>
 
-  <!-- CHAT WRAPPER (ALWAYS VISIBLE FOR DEV) -->
-  <div id="chat-wrapper" style="display: flex;">
-    <div id="messages" style="display: none;">
-      <div class="message bot">
-        <span class="bot-avatar">🤖</span>
-        Hi! What can I do for you?
-      </div>
-    </div>
+  <!-- CHAT WRAPPER (hidden until login) -->
+  <div id="chat-wrapper" style="display: none;">
+    <div id="messages"></div>
     <div id="input-area" style="display: none;">
-      <textarea id="userInput" placeholder="Type your message…" maxlength="1000" onkeydown="handleKey(event)"></textarea>
+      <textarea id="userInput"
+                placeholder="Type your message…"
+                maxlength="1000"
+                onkeydown="handleKey(event)"></textarea>
       <button id="sendBtn">Send</button>
     </div>
   </div>
 
   <!-- SCRIPTS -->
-  <script type="module">
-    // Tillfällig dev-mode – sätt till false för produktion
-    const devMode = true;
-    if (devMode) {
-      document.getElementById("messages").style.display = "flex";
-      document.getElementById("input-area").style.display = "flex";
-    }
-  </script>
-
   <script type="module" src="firebase-config.js"></script>
   <script type="module" src="script.js"></script>
 
