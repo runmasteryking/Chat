@@ -262,10 +262,16 @@ async function generateBotReply(userText) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       message: userText,
-      userProfile: userProfileState
+      userProfile: {
+        name: currentUser?.displayName || null,
+        email: currentUser?.email || null,
+        language: "english", // eller "swedish" beroende på framtida inställningar
+        ...userProfileState
+      }
     })
   });
 
   const data = await response.json();
   return data.reply || "Sorry, I couldn’t generate a reply.";
 }
+
