@@ -4,15 +4,15 @@ exports.handler = async (event, context) => {
   try {
     const { message, userProfile } = JSON.parse(event.body);
 
-    const name = userProfile?.name?.trim() || "Runner";
-    let language = (userProfile?.language || "auto").toLowerCase();
-    const level = (userProfile?.level || "intermediate").toLowerCase();
-    const agent = (userProfile?.agent || "coach").toLowerCase();
+    const name     = userProfile?.name?.trim() || "Runner";
+    let   language = (userProfile?.language || "auto").toLowerCase();
+    const level    = (userProfile?.level || "intermediate").toLowerCase();
+    const agent    = (userProfile?.agent || "coach").toLowerCase();
 
-    const requiredFields = ["gender", "birthYear", "current5kTime", "weeklySessions"];
-    const missingFields = requiredFields.filter(field => !userProfile?.[field]);
+    const requiredFields = ["gender","birthYear","current5kTime","weeklySessions"];
+    const missingFields  = requiredFields.filter(f => !userProfile?.[f]);
 
-    // 🧠 KONSTRUKTION AV SYSTEMPROMPT
+    // 🧠 SYSTEMPROMPT
     let systemPrompt = `
 You are Run Mastery AI — a world-class running coach.
 
@@ -23,7 +23,7 @@ You are Run Mastery AI — a world-class running coach.
 - NEVER repeat what the user already said.
 - ALWAYS follow up with a relevant question to keep the conversation moving—even after "ok".
 
-👂 If the user gives a short answer (like "20"), confirm it in a friendly way:
+👂 If the user gives a short answer (like "20"), confirm it:
 "So your 5K time is 20 minutes? Awesome. What are you aiming for next?"
 
 🧠 Language handling:
@@ -51,7 +51,7 @@ ${missingFields.map(f => `- ${f}`).join("\n")}
 But do not repeat already answered items.`;
     }
 
-    // Specialistroll
+    // Specialist role
     switch (agent) {
       case "race-planner":
         systemPrompt += `\nYou're their Race Planner: focus on pacing, tapering, race strategy.`; break;
@@ -65,7 +65,7 @@ But do not repeat already answered items.`;
         systemPrompt += `\nYou're their Training Coach: build consistent, personalized training.`; 
     }
 
-    // Språkinstruktioner
+    // Language instructions
     if (language === "swedish") {
       systemPrompt += `\nSvar bara på svenska. Håll det kort, tydligt och coachande utan engelska uttryck.`;
     } else if (language === "english") {
@@ -74,7 +74,7 @@ But do not repeat already answered items.`;
       systemPrompt += `\nDetect the user's language from their message and reply accordingly.`;
     }
 
-    // Profiluppdateringsblock
+    // Profile‐update block
     systemPrompt += `
 
 📦 If you learn new info (name, language, gender, birthYear, current5kTime, weeklySessions),
@@ -85,7 +85,7 @@ return it only in this JSON block:
 [/PROFILE UPDATE]
 `;
 
-    // 📡 Anropa GPT-4
+    // 📡 Call OpenAI GPT-4
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -96,7 +96,7 @@ return it only in this JSON block:
         model: "gpt-4",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: message }
+          { role: "user",   content: message }
         ],
         temperature: 0.7
       })
@@ -107,14 +107,16 @@ return it only in this JSON block:
       throw new Error("OpenAI API error");
     }
 
-    const data = await response.json();
-    const rawReply = data.choices?.[0]?.message?.content || "Sorry, I couldn't think of a reply.";
+    const data     = await response.json();
+    const rawReply = data.choices?.[0]?.message?.content || "";
 
     // Extrahera profiluppdateringar
     const profileUpdate = extractProfileFields(rawReply);
 
     // Rensa ut blocket innan visning
-    const cleanedReply = rawReply.replace(/\[PROFILE UPDATE\][\s\S]*?\[\/PROFILE UPDATE\]/g, "").trim();
+    const cleanedReply = rawReply
+      .replace(/\[PROFILE UPDATE\][\s\S]*?\[\/PROFILE UPDATE\]/g, "")
+      .trim();
 
     return {
       statusCode: 200,
@@ -130,13 +132,11 @@ return it only in this JSON block:
   }
 };
 
-// -------------------------
-// 🔍 EXTRACT PROFILE UPDATES
-// -------------------------
+// 🔍 EXTRACT PROFILE UPDATE + fallbacks
 function extractProfileFields(text) {
   const profileUpdate = {};
 
-  // JSON-block
+  // 1) JSON-block
   const jsonMatch = text.match(/\[PROFILE UPDATE\]([\s\S]*?)\[\/PROFILE UPDATE\]/);
   if (jsonMatch) {
     try {
@@ -146,12 +146,25 @@ function extractProfileFields(text) {
     }
   }
 
-  // Manuell språkväxling
+  // 2) Manual language switch
   const langMatch = text.match(/(?:switch to|byt till|kan vi prata)\s+(english|svenska|swedish)/i);
   if (langMatch) {
     const lang = langMatch[1].toLowerCase();
     profileUpdate.language = lang.startsWith("sv") ? "swedish" : "english";
   }
+
+  // 3) Fallback regex för andra fält
+  const mName   = text.match(/(?:My name is|Jag heter|Hej, jag är)\s+([A-Za-zÅÄÖåäö]+)/i);
+  const mGender = text.match(/(?:I am a|Jag är en)\s+(male|female|man|kvinna)/i);
+  const mBirth  = text.match(/(?:born in|född\s?)(\d{4})/i);
+  const m5k     = text.match(/(?:5K time[:\s]*)(\d{1,2}:?\d{0,2})/i);
+  const mSess   = text.match(/(?:run|spring)\s+(\d)\s+(?:times|gånger)/i);
+
+  if (mName)   profileUpdate.name           = mName[1];
+  if (mGender) profileUpdate.gender         = (mGender[1].toLowerCase().startsWith("m")?"male":"female");
+  if (mBirth)  profileUpdate.birthYear      = mBirth[1];
+  if (m5k)     profileUpdate.current5kTime  = m5k[1];
+  if (mSess)   profileUpdate.weeklySessions = mSess[1];
 
   return profileUpdate;
 }
