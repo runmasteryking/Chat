@@ -1,17 +1,21 @@
+// script.js
+
 // -------------------------------
 // IMPORTS & FIREBASE TOOLS
 // -------------------------------
-import { 
-  auth, 
-  provider, 
+import {
+  auth,
+  provider,
   db,
-  doc, 
-  setDoc, 
-  getDoc, 
-  serverTimestamp 
+  doc,
+  setDoc,
+  getDoc,
+  serverTimestamp
 } from "./firebase-config.js";
-import { signInWithPopup, onAuthStateChanged } 
-  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import {
+  signInWithPopup,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 // -------------------------------
 // DOM ELEMENTS
@@ -47,6 +51,7 @@ function typeText(text, i = 0) {
     setTimeout(() => eraseText(text.length), 1800);
   }
 }
+
 function eraseText(i) {
   typeEl.textContent = phrases[currentPhrase].slice(0, i);
   if (i > 0) {
@@ -56,6 +61,8 @@ function eraseText(i) {
     typeText(phrases[currentPhrase]);
   }
 }
+
+// Start the typewriter
 typeText(phrases[currentPhrase]);
 
 // -------------------------------
@@ -76,6 +83,7 @@ const userProfileState = {
   agent: null,
   profileComplete: false
 };
+
 const profileQuestions = [
   { key: "name",           question: "What should I call you?" },
   { key: "gender",         question: "What's your gender?" },
@@ -109,7 +117,7 @@ loginBtn.addEventListener("click", async () => {
   }
 });
 
-onAuthStateChanged(auth, async user => {
+onAuthStateChanged(auth, async (user) => {
   if (user) {
     currentUser = user;
     await loadProfile(user.uid);
@@ -119,37 +127,41 @@ onAuthStateChanged(auth, async user => {
 });
 
 async function loadProfile(uid) {
-  const ref  = doc(db, "users", uid);
+  const ref = doc(db, "users", uid);
   const snap = await getDoc(ref);
   if (snap.exists() && snap.data().profile) {
     Object.assign(userProfileState, snap.data().profile);
   }
-  await setDoc(ref, {
-    lastLogin: serverTimestamp(),
-    profile: userProfileState
-  }, { merge: true });
+  await setDoc(
+    ref,
+    {
+      lastLogin: serverTimestamp(),
+      profile: userProfileState,
+    },
+    { merge: true }
+  );
 }
 
 // -------------------------------
 // UI CONTROL
 // -------------------------------
 function showUserInfo(user) {
-  loginBtn.style.display  = "none";
-  userInfo.style.display  = "block";
-  userName.textContent    = user.displayName || "Runner";
+  loginBtn.style.display = "none";
+  userInfo.style.display = "block";
+  userName.textContent = user.displayName || "Runner";
 }
 
 function showChatUI() {
   chatWrapper.style.display = "flex";
-  messages.style.display    = "flex";
-  inputArea.style.display   = "flex";
+  messages.style.display = "flex";
+  inputArea.style.display = "flex";
 }
 
 // -------------------------------
 // CHAT FUNCTIONALITY
 // -------------------------------
 sendBtn.addEventListener("click", sendMessage);
-input.addEventListener("keydown", e => {
+input.addEventListener("keydown", (e) => {
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
     sendMessage();
@@ -160,6 +172,7 @@ async function sendMessage() {
   const text = input.value.trim();
   if (!text) return;
 
+  // First user message triggers onboarding
   if (!firstMessageSent) {
     intro.style.display = "none";
     firstMessageSent = true;
@@ -170,14 +183,64 @@ async function sendMessage() {
     return;
   }
 
+  // Show user text
   appendMessage("user", text);
   await saveMsg("user", text);
   input.value = "";
   autoScroll();
 
-  // … resten av din språk‐ och onboarding‐logik …
+  // Language switch command
+  const sw = text.match(/(?:switch to|byt till|prata på)\s+(english|svenska|swedish)/i);
+  if (sw) {
+    const nl = sw[1].toLowerCase().startsWith("sv") ? "swedish" : "english";
+    userProfileState.language = nl;
+    await setDoc(
+      doc(db, "users", currentUser.uid),
+      { profile: userProfileState, updatedAt: serverTimestamp() },
+      { merge: true }
+    );
+    appendMessage(
+      "bot",
+      nl === "swedish" ? "Nu kör vi på svenska!" : "Alright, switching to English!"
+    );
+    await saveMsg("bot", messages.lastChild.textContent);
+    return;
+  }
 
-  // Efter onboarding: AI‐anrop
+  // Auto-detect language once
+  if (!firstLangHandled && !userProfileState.language) {
+    const isSw = /[åäö]|hej|och/i.test(text);
+    userProfileState.language = isSw ? "swedish" : "english";
+    await setDoc(
+      doc(db, "users", currentUser.uid),
+      { profile: userProfileState, updatedAt: serverTimestamp() },
+      { merge: true }
+    );
+    firstLangHandled = true;
+  }
+
+  // Onboarding: save answer & ask next
+  if (!userProfileState.profileComplete && currentQuestionKey) {
+    userProfileState[currentQuestionKey] = text;
+    await setDoc(
+      doc(db, "users", currentUser.uid),
+      { profile: userProfileState, updatedAt: serverTimestamp() },
+      { merge: true }
+    );
+
+    const idx = profileQuestions.findIndex((q) => q.key === currentQuestionKey);
+    if (idx < profileQuestions.length - 1) {
+      currentQuestionKey = profileQuestions[idx + 1].key;
+      const q = profileQuestions[idx + 1].question;
+      appendMessage("bot", q);
+      await saveMsg("bot", q);
+    } else {
+      userProfileState.profileComplete = true;
+    }
+    return;
+  }
+
+  // After onboarding, call AI
   const thinking = document.createElement("div");
   thinking.className = "message bot thinking";
   thinking.textContent = "...";
@@ -189,11 +252,11 @@ async function sendMessage() {
     thinking.remove();
     appendMessage("bot", reply);
     await saveMsg("bot", reply);
-  } catch (err) {
+  } catch (e) {
     thinking.remove();
     appendMessage("bot", "⚠️ Something went wrong.");
     await saveMsg("bot", "⚠️ Something went wrong.");
-    console.error(err);
+    console.error(e);
   }
   autoScroll();
 }
@@ -223,12 +286,12 @@ async function saveMsg(sender, text) {
 // AI‐CALL + PROFILE UPDATE
 // -------------------------------
 async function generateBotReply(userText) {
-  const res = await fetch('/.netlify/functions/ask-gpt', {
+  const res = await fetch("/.netlify/functions/ask-gpt", {
     method: "POST",
-    headers:{ "Content-Type":"application/json" },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       message: userText,
-      userProfile:{
+      userProfile: {
         ...userProfileState,
         name: userProfileState.name || currentUser.displayName
       }
@@ -241,16 +304,17 @@ async function generateBotReply(userText) {
   const data = await res.json();
   if (data.profileUpdate && Object.keys(data.profileUpdate).length) {
     Object.assign(userProfileState, data.profileUpdate);
-    await setDoc(doc(db, "users", currentUser.uid), {
-      profile: userProfileState,
-      updatedAt: serverTimestamp()
-    }, { merge: true });
+    await setDoc(
+      doc(db, "users", currentUser.uid),
+      { profile: userProfileState, updatedAt: serverTimestamp() },
+      { merge: true }
+    );
   }
   return data.reply || "";
 }
 
 // Expose handleKey globally
-window.handleKey = e => {
+window.handleKey = (e) => {
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
     sendMessage();
