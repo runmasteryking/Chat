@@ -1,34 +1,40 @@
+// functions/ask-gpt.js
 const fetch = require("node-fetch");
 
 exports.handler = async (event, context) => {
   try {
-    const { message, userProfile } = JSON.parse(event.body);
+    // Ta emot både summarien och de senaste meddelandena
+    const {
+      systemSummary = "",
+      recentMessages = "",
+      message,
+      userProfile
+    } = JSON.parse(event.body);
 
-    const name     = userProfile?.name?.trim() || "Runner";
-    let   language = (userProfile?.language || "auto").toLowerCase();
-    const level    = (userProfile?.level || "intermediate").toLowerCase();
-    const agent    = (userProfile?.agent || "coach").toLowerCase();
+    const name     = userProfile?.name?.trim()       || "Runner";
+    const language = (userProfile?.language || "english").toLowerCase();
+    const level    = (userProfile?.level    || "intermediate").toLowerCase();
+    const agent    = (userProfile?.agent    || "coach").toLowerCase();
 
-    const requiredFields = ["gender","birthYear","current5kTime","weeklySessions"];
-    const missingFields  = requiredFields.filter(f => !userProfile?.[f]);
-
-    // 🧠 SYSTEMPROMPT
-    let systemPrompt = `
+    // Bygg system-prompt
+    const systemPrompt = `
 You are Run Mastery AI — a world-class running coach.
 
+💡 Conversation summary:
+${systemSummary}
+
+💬 Recent messages:
+${recentMessages}
+
 🎯 Core rules:
-- Speak like a supportive human coach texting a runner.
-- Keep replies brief (1–2 short paragraphs), warm and practical.
-- NEVER say you're an AI.
-- NEVER repeat what the user already said.
-- ALWAYS follow up with a relevant question to keep the conversation moving—even after "ok".
+- Speak like a warm, practical human coach.
+- Keep replies short (1–2 paragraphs).
+- Never say you're an AI.
+- Never repeat what the user already said.
+- Always ask a follow-up question—even after "ok".
 
-👂 If the user gives a short answer (like "20"), confirm it:
-"So your 5K time is 20 minutes? Awesome. What are you aiming for next?"
-
-🧠 Language handling:
-- If language is "auto", detect from the message.
-- Honor explicit switch commands ("switch to English", "byt till svenska") and update.
+👂 If the user gives a brief answer (e.g. "20"), confirm it:
+  "So your 5K time is 20 minutes? Awesome. What’s next?"
 
 ✅ Greet by name only in your very first reply.
 
@@ -36,56 +42,43 @@ User profile:
 - Name: ${name}
 - Language: ${language}
 - Level: ${level}
-- Gender: ${userProfile?.gender || "unknown"}
+- Gender: ${userProfile?.gender    || "unknown"}
 - Birth year: ${userProfile?.birthYear || "unknown"}
-- 5K time: ${userProfile?.current5kTime || "unknown"}
+- 5K time: ${userProfile?.current5kTime  || "unknown"}
 - Weekly sessions: ${userProfile?.weeklySessions || "unknown"}
 `.trim();
 
-    if (missingFields.length) {
-      systemPrompt += `
-
-🟡 The user's profile is incomplete.
-If natural, you may gently ask about:
-${missingFields.map(f => `- ${f}`).join("\n")}
-But do not repeat already answered items.`;
-    }
-
-    // Specialist role
+    // Lägg till roll-specifika instruktioner
+    let rolePrompt = "";
     switch (agent) {
       case "race-planner":
-        systemPrompt += `\nYou're their Race Planner: focus on pacing, tapering, race strategy.`; break;
+        rolePrompt = "You're their Race Planner: focus on pacing, tapering, race strategy.";
+        break;
       case "strategist":
-        systemPrompt += `\nYou're their Mental Strategist: guide mindset, pacing plans, tactics.`; break;
+        rolePrompt = "You're their Mental Strategist: guide mindset, pacing and tactics.";
+        break;
       case "nutritionist":
-        systemPrompt += `\nYou're their Nutrition Coach: provide fueling, hydration, recovery advice.`; break;
+        rolePrompt = "You're their Nutrition Coach: give fueling, hydration and recovery advice.";
+        break;
       case "injury-assistant":
-        systemPrompt += `\nYou're their Injury Assistant: support safe return to running, no diagnoses.`; break;
+        rolePrompt = "You're their Injury Assistant: support safe return to running, no diagnoses.";
+        break;
       default:
-        systemPrompt += `\nYou're their Training Coach: build consistent, personalized training.`; 
+        rolePrompt = "You're their Training Coach: build consistent, personalized training.";
     }
 
-    // Language instructions
+    // Språkinstruktion
+    let langPrompt = "";
     if (language === "swedish") {
-      systemPrompt += `\nSvar bara på svenska. Håll det kort, tydligt och coachande utan engelska uttryck.`;
-    } else if (language === "english") {
-      systemPrompt += `\nReply only in English. Keep tone warm, smart, and concise.`;
+      langPrompt = "Svara bara på svenska. Korta, tydliga och coachande meningar.";
     } else {
-      systemPrompt += `\nDetect the user's language from their message and reply accordingly.`;
+      langPrompt = "Reply only in English. Keep tone warm, smart, and concise.";
     }
 
-    // Profile‐update block
-    systemPrompt += `
+    // Komplett systemprompt
+    const fullSystem = [systemPrompt, rolePrompt, langPrompt].join("\n\n");
 
-📦 If you learn new info (name, language, gender, birthYear, current5kTime, weeklySessions),
-return it only in this JSON block:
-
-[PROFILE UPDATE]
-{ "language": "swedish", "current5kTime": "20:00" }
-[/PROFILE UPDATE]
-`;
-
-    // 📡 Call OpenAI GPT-4
+    // Anropa OpenAI GPT-4
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -95,7 +88,7 @@ return it only in this JSON block:
       body: JSON.stringify({
         model: "gpt-4",
         messages: [
-          { role: "system", content: systemPrompt },
+          { role: "system", content: fullSystem },
           { role: "user",   content: message }
         ],
         temperature: 0.7
@@ -111,12 +104,18 @@ return it only in this JSON block:
     const rawReply = data.choices?.[0]?.message?.content || "";
 
     // Extrahera profiluppdateringar
-    const profileUpdate = extractProfileFields(rawReply);
+    const profileUpdate = {};
+    const jsonMatch = rawReply.match(/\[PROFILE UPDATE\]([\s\S]*?)\[\/PROFILE UPDATE\]/);
+    if (jsonMatch) {
+      try {
+        Object.assign(profileUpdate, JSON.parse(jsonMatch[1].trim()));
+      } catch (e) {
+        console.warn("Failed to parse profile JSON:", e);
+      }
+    }
 
-    // Rensa ut blocket innan visning
-    const cleanedReply = rawReply
-      .replace(/\[PROFILE UPDATE\][\s\S]*?\[\/PROFILE UPDATE\]/g, "")
-      .trim();
+    // Rensa ut PROFILE UPDATE-blocket innan klienten visar texten
+    const cleanedReply = rawReply.replace(/\[PROFILE UPDATE\][\s\S]*?\[\/PROFILE UPDATE\]/g, "").trim();
 
     return {
       statusCode: 200,
@@ -131,40 +130,3 @@ return it only in this JSON block:
     };
   }
 };
-
-// 🔍 EXTRACT PROFILE UPDATE + fallbacks
-function extractProfileFields(text) {
-  const profileUpdate = {};
-
-  // 1) JSON-block
-  const jsonMatch = text.match(/\[PROFILE UPDATE\]([\s\S]*?)\[\/PROFILE UPDATE\]/);
-  if (jsonMatch) {
-    try {
-      Object.assign(profileUpdate, JSON.parse(jsonMatch[1].trim()));
-    } catch (e) {
-      console.warn("Failed to parse profile JSON:", e);
-    }
-  }
-
-  // 2) Manual language switch
-  const langMatch = text.match(/(?:switch to|byt till|kan vi prata)\s+(english|svenska|swedish)/i);
-  if (langMatch) {
-    const lang = langMatch[1].toLowerCase();
-    profileUpdate.language = lang.startsWith("sv") ? "swedish" : "english";
-  }
-
-  // 3) Fallback regex för andra fält
-  const mName   = text.match(/(?:My name is|Jag heter|Hej, jag är)\s+([A-Za-zÅÄÖåäö]+)/i);
-  const mGender = text.match(/(?:I am a|Jag är en)\s+(male|female|man|kvinna)/i);
-  const mBirth  = text.match(/(?:born in|född\s?)(\d{4})/i);
-  const m5k     = text.match(/(?:5K time[:\s]*)(\d{1,2}:?\d{0,2})/i);
-  const mSess   = text.match(/(?:run|spring)\s+(\d)\s+(?:times|gånger)/i);
-
-  if (mName)   profileUpdate.name           = mName[1];
-  if (mGender) profileUpdate.gender         = (mGender[1].toLowerCase().startsWith("m")?"male":"female");
-  if (mBirth)  profileUpdate.birthYear      = mBirth[1];
-  if (m5k)     profileUpdate.current5kTime  = m5k[1];
-  if (mSess)   profileUpdate.weeklySessions = mSess[1];
-
-  return profileUpdate;
-}
