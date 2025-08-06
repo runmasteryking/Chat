@@ -112,7 +112,8 @@ async function saveUserToFirestore(user) {
     name: user.displayName || null,
     email: user.email || null,
     photoURL: user.photoURL || null,
-    lastLogin: serverTimestamp()
+    lastLogin: serverTimestamp(),
+    profile: userProfileState
   }, { merge: true });
 }
 
@@ -183,14 +184,13 @@ async function sendMessage() {
 
   if (!userProfileState.profileComplete && currentQuestionKey) {
     userProfileState[currentQuestionKey] = text;
+    await setDoc(doc(db, "users", currentUser.uid), {
+      profile: userProfileState,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
     currentQuestionKey = askNextProfileQuestion();
 
     if (userProfileState.profileComplete) {
-      await setDoc(doc(db, "users", currentUser.uid), {
-        profile: userProfileState,
-        updatedAt: serverTimestamp()
-      }, { merge: true });
-
       appendMessage("bot", "✅ Thanks! Now let me analyze your goals...");
       await saveMessageToFirestore("bot", "✅ Thanks! Now let me analyze your goals...");
       requestPlanFromGPT();
