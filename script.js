@@ -10,7 +10,12 @@ import {
   doc,
   setDoc,
   getDoc,
-  serverTimestamp
+  serverTimestamp,
+  collection,
+  query,
+  orderBy,
+  limit,
+  getDocs
 } from "./firebase-config.js";
 import {
   signInWithPopup,
@@ -62,7 +67,7 @@ function eraseText(i) {
   }
 }
 
-// Start typewriter
+// Starta typewriter
 typeText(phrases[currentPhrase]);
 
 // -------------------------------
@@ -81,7 +86,8 @@ const userProfileState = {
   raceDate: null,
   raceDistance: null,
   agent: null,
-  profileComplete: false
+  profileComplete: false,
+  conversationSummary: ""   // ← Nytt fält
 };
 
 const profileQuestions = [
@@ -132,6 +138,7 @@ async function loadProfile(uid) {
   if (snap.exists() && snap.data().profile) {
     Object.assign(userProfileState, snap.data().profile);
   }
+  // Uppdatera lastLogin & profil i Firestore
   await setDoc(ref, {
     lastLogin: serverTimestamp(),
     profile: userProfileState
@@ -175,19 +182,21 @@ async function sendMessage() {
     currentQuestionKey = profileQuestions[0].key;
     appendMessage("bot", profileQuestions[0].question);
     await saveMsg("bot", profileQuestions[0].question);
+    await updateConversationSummary("bot", profileQuestions[0].question);
     input.value = "";
     return;
   }
 
-  // Show user message
+  // Visa användartext
   appendMessage("user", text);
   await saveMsg("user", text);
+  await updateConversationSummary("user", text);
   input.value = "";
   autoScroll();
 
-  // ... ditt språk‐ och onboarding‐flow här ...
+  // Språk- och onboarding-flow… (om du har det)
 
-  // När klar: AI‐anrop
+  // AI-anrop
   const thinking = document.createElement("div");
   thinking.className = "message bot thinking";
   thinking.textContent = "...";
@@ -199,6 +208,7 @@ async function sendMessage() {
     thinking.remove();
     appendMessage("bot", reply);
     await saveMsg("bot", reply);
+    await updateConversationSummary("bot", reply);
   } catch (e) {
     thinking.remove();
     appendMessage("bot", "⚠️ Something went wrong.");
@@ -206,6 +216,37 @@ async function sendMessage() {
     console.error(e);
   }
   autoScroll();
+}
+
+// -------------------------------
+// UPDATE SUMMARY
+// -------------------------------
+async function updateConversationSummary(sender, text) {
+  const userRef = doc(db, "users", currentUser.uid);
+  const snap    = await getDoc(userRef);
+  const existing = snap.data().profile.conversationSummary || "";
+
+  // Anropa summarizer-funktion
+  const resp = await fetch("/.netlify/functions/summarize-gpt", {
+    method: "POST",
+    headers: { "Content-Type":"application/json" },
+    body: JSON.stringify({
+      prompt: `
+Existing summary:
+${existing}
+
+New message:
+${sender}: ${text}
+
+Update the summary (max 200 words):`
+    })
+  });
+  const { summary } = await resp.json();
+
+  userProfileState.conversationSummary = summary;
+  await setDoc(userRef, {
+    profile: { conversationSummary: summary }
+  }, { merge: true });
 }
 
 // -------------------------------
@@ -228,35 +269,60 @@ function autoScroll() {
 
 async function saveMsg(sender, text) {
   const ref = doc(db, "users", currentUser.uid, "messages", Date.now().toString());
-  await setDoc(ref, { sender, text, timestamp: serverTimestamp() });
+  await setDoc(ref, {
+    sender,
+    text,
+    timestamp: serverTimestamp()
+  });
 }
 
 // -------------------------------
-// AI‐CALL + PROFILE UPDATE
+// AI-CALL + PROFILE UPDATE
 // -------------------------------
 async function generateBotReply(userText) {
+  // Hämta summary
+  const userRef = doc(db, "users", currentUser.uid);
+  const snap    = await getDoc(userRef);
+  const summary = snap.data().profile.conversationSummary || "";
+
+  // Hämta senaste 5 meddelanden
+  const msgsCol = collection(db, "users", currentUser.uid, "messages");
+  const q        = query(msgsCol, orderBy("timestamp","desc"), limit(5));
+  const docsSnap = await getDocs(q);
+  const recent   = docsSnap.docs
+    .map(d => `${d.data().sender}: ${d.data().text}`)
+    .reverse()
+    .join("\n");
+
+  // Skicka till GPT
   const res = await fetch("/.netlify/functions/ask-gpt", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type":"application/json" },
     body: JSON.stringify({
-      message: userText,
+      systemSummary:  summary,
+      recentMessages: recent,
+      message:        userText,
       userProfile: {
         ...userProfileState,
         name: userProfileState.name || currentUser.displayName
       }
     })
   });
+
   if (!res.ok) {
     console.error("GPT error", res.status, await res.text());
     return "⚠️ AI didn’t respond.";
   }
   const data = await res.json();
+
+  // Spara profileUpdate om det finns
   if (data.profileUpdate && Object.keys(data.profileUpdate).length) {
     Object.assign(userProfileState, data.profileUpdate);
-    await setDoc(doc(db, "users", currentUser.uid), {
-      profile:      userProfileState,
-      updatedAt:    serverTimestamp()
-    }, { merge: true });
+    await setDoc(userRef, {
+      profile:   userProfileState,
+      updatedAt: serverTimestamp()
+    }, { merge:true });
   }
+
   return data.reply || "";
 }
