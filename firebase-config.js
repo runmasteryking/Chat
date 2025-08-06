@@ -1,17 +1,27 @@
 // firebase-config.js
 
-// IMPORTERA Firebase SDK via CDN (v10.12.0)
+// IMPORTERA Firebase SDK via CDN
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import {
   getFirestore,
   doc,
   setDoc,
   getDoc,
-  serverTimestamp
+  serverTimestamp,
+  collection,
+  query,
+  orderBy,
+  limit,
+  getDocs
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-// FIREBASE-KONFIGURATION
+// DIN FIREBASE-KONFIG
 const firebaseConfig = {
   apiKey: "AIzaSyBx8seK9f-ZTV3JemDQ9sdTZkoiwSTvtqI",
   authDomain: "run-mastery-ai.firebaseapp.com",
@@ -21,13 +31,23 @@ const firebaseConfig = {
   appId: "1:599923677042:web:bc968a22483c7b3f916feb"
 };
 
-// INITIERA Firebase App
+// Initiera
 const app = initializeApp(firebaseConfig);
+export const auth      = getAuth(app);
+export const provider  = new GoogleAuthProvider();
+export const db        = getFirestore(app);
 
-// EXPORTERA nödvändiga Firebase-tjänster
-export const auth = getAuth(app);
-export const provider = new GoogleAuthProvider();
-export const db = getFirestore(app);
-
-// EXPORTERA Firestore-verktyg för enkel åtkomst i script.js
-export { doc, setDoc, getDoc, serverTimestamp };
+// Exportera allting du behöver i script.js
+export {
+  signInWithPopup,
+  onAuthStateChanged,
+  doc,
+  setDoc,
+  getDoc,
+  serverTimestamp,
+  collection,
+  query,
+  orderBy,
+  limit,
+  getDocs
+};
