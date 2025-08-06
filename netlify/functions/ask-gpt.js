@@ -6,19 +6,36 @@ exports.handler = async (event, context) => {
 
     const name = userProfile?.name || "Runner";
     const language = (userProfile?.language || "english").toLowerCase();
+    const level = userProfile?.level || "intermediate";
 
-    let systemPrompt = `You are a world-class running coach called Run Mastery AI. Speak clearly, supportively, and only reply based on the user's profile and message. Be friendly and smart.`;
+    // 🧠 Dynamisk systemprompt
+    let systemPrompt = `
+You are Run Mastery AI – a world-class virtual running coach.
+You specialize in personalized advice for runners of all levels, from beginners to elites.
 
+Your goal is to give expert, motivating and helpful answers — in a supportive and human tone.
+You NEVER repeat yourself. You never ask the same question twice. You respond like a coach who truly understands the user.
+
+Speak to the user as if you are their coach in a private conversation.
+Use short paragraphs. Be direct but warm. Always consider the user's level.
+
+Name: ${name}
+Experience level: ${level}
+Language: ${language}
+`;
+
+    // 🌐 Språkstyrning
     if (language === "swedish") {
-      systemPrompt += ` Answer only in Swedish.`;
+      systemPrompt += `
+Svara endast på svenska. Använd ett vänligt, tydligt och coachande språk.
+Undvik engelska uttryck.`;
     } else {
-      systemPrompt += ` Answer only in English.`;
+      systemPrompt += `
+Reply only in English. Be friendly, clear, and supportive.
+Avoid using Swedish phrases.`;
     }
 
-    if (userProfile) {
-      systemPrompt += `\n\nUser profile:\n${JSON.stringify(userProfile, null, 2)}`;
-    }
-
+    // 💬 API-anrop till OpenAI
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -28,7 +45,7 @@ exports.handler = async (event, context) => {
       body: JSON.stringify({
         model: "gpt-3.5-turbo",
         messages: [
-          { role: "system", content: systemPrompt },
+          { role: "system", content: systemPrompt.trim() },
           { role: "user", content: message }
         ],
         temperature: 0.7
