@@ -121,6 +121,8 @@ function showUserInfo(user) {
 // -------------------------------
 function showChatUI() {
   chatWrapper.style.display = "flex";
+  messages.style.display = "flex";
+  document.getElementById("input-area").style.display = "flex";
 }
 
 // -------------------------------
