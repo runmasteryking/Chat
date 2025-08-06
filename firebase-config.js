@@ -7,6 +7,7 @@ import {
   getFirestore,
   doc,
   setDoc,
+  getDoc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
@@ -28,5 +29,5 @@ export const auth = getAuth(app);
 export const provider = new GoogleAuthProvider();
 export const db = getFirestore(app);
 
-// EXPORTERA Firestore-verktyg för enkel åtkomst
-export { doc, setDoc, serverTimestamp };
+// EXPORTERA Firestore-verktyg för enkel åtkomst i script.js
+export { doc, setDoc, getDoc, serverTimestamp };
