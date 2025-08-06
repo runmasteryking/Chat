@@ -62,7 +62,7 @@ function eraseText(i) {
   }
 }
 
-// Start the typewriter
+// Start typewriter
 typeText(phrases[currentPhrase]);
 
 // -------------------------------
@@ -103,7 +103,7 @@ let firstMessageSent = false;
 let firstLangHandled = false;
 
 // -------------------------------
-// AUTHENTICATION & PROFILE LOAD
+// AUTH + PROFILE LOAD
 // -------------------------------
 loginBtn.addEventListener("click", async () => {
   try {
@@ -127,19 +127,15 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 async function loadProfile(uid) {
-  const ref = doc(db, "users", uid);
+  const ref  = doc(db, "users", uid);
   const snap = await getDoc(ref);
   if (snap.exists() && snap.data().profile) {
     Object.assign(userProfileState, snap.data().profile);
   }
-  await setDoc(
-    ref,
-    {
-      lastLogin: serverTimestamp(),
-      profile: userProfileState,
-    },
-    { merge: true }
-  );
+  await setDoc(ref, {
+    lastLogin: serverTimestamp(),
+    profile: userProfileState
+  }, { merge: true });
 }
 
 // -------------------------------
@@ -153,15 +149,15 @@ function showUserInfo(user) {
 
 function showChatUI() {
   chatWrapper.style.display = "flex";
-  messages.style.display = "flex";
-  inputArea.style.display = "flex";
+  messages.style.display    = "flex";
+  inputArea.style.display   = "flex";
 }
 
 // -------------------------------
 // CHAT FUNCTIONALITY
 // -------------------------------
 sendBtn.addEventListener("click", sendMessage);
-input.addEventListener("keydown", (e) => {
+input.addEventListener("keydown", e => {
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
     sendMessage();
@@ -172,7 +168,7 @@ async function sendMessage() {
   const text = input.value.trim();
   if (!text) return;
 
-  // First user message triggers onboarding
+  // Onboarding start
   if (!firstMessageSent) {
     intro.style.display = "none";
     firstMessageSent = true;
@@ -183,64 +179,15 @@ async function sendMessage() {
     return;
   }
 
-  // Show user text
+  // Show user message
   appendMessage("user", text);
   await saveMsg("user", text);
   input.value = "";
   autoScroll();
 
-  // Language switch command
-  const sw = text.match(/(?:switch to|byt till|prata på)\s+(english|svenska|swedish)/i);
-  if (sw) {
-    const nl = sw[1].toLowerCase().startsWith("sv") ? "swedish" : "english";
-    userProfileState.language = nl;
-    await setDoc(
-      doc(db, "users", currentUser.uid),
-      { profile: userProfileState, updatedAt: serverTimestamp() },
-      { merge: true }
-    );
-    appendMessage(
-      "bot",
-      nl === "swedish" ? "Nu kör vi på svenska!" : "Alright, switching to English!"
-    );
-    await saveMsg("bot", messages.lastChild.textContent);
-    return;
-  }
+  // ... ditt språk‐ och onboarding‐flow här ...
 
-  // Auto-detect language once
-  if (!firstLangHandled && !userProfileState.language) {
-    const isSw = /[åäö]|hej|och/i.test(text);
-    userProfileState.language = isSw ? "swedish" : "english";
-    await setDoc(
-      doc(db, "users", currentUser.uid),
-      { profile: userProfileState, updatedAt: serverTimestamp() },
-      { merge: true }
-    );
-    firstLangHandled = true;
-  }
-
-  // Onboarding: save answer & ask next
-  if (!userProfileState.profileComplete && currentQuestionKey) {
-    userProfileState[currentQuestionKey] = text;
-    await setDoc(
-      doc(db, "users", currentUser.uid),
-      { profile: userProfileState, updatedAt: serverTimestamp() },
-      { merge: true }
-    );
-
-    const idx = profileQuestions.findIndex((q) => q.key === currentQuestionKey);
-    if (idx < profileQuestions.length - 1) {
-      currentQuestionKey = profileQuestions[idx + 1].key;
-      const q = profileQuestions[idx + 1].question;
-      appendMessage("bot", q);
-      await saveMsg("bot", q);
-    } else {
-      userProfileState.profileComplete = true;
-    }
-    return;
-  }
-
-  // After onboarding, call AI
+  // När klar: AI‐anrop
   const thinking = document.createElement("div");
   thinking.className = "message bot thinking";
   thinking.textContent = "...";
@@ -265,7 +212,9 @@ async function sendMessage() {
 // HELPERS
 // -------------------------------
 function appendMessage(type, text) {
-  const clean = text.replace(/\[PROFILE UPDATE\][\s\S]*?\[\/PROFILE UPDATE\]/g, "").trim();
+  const clean = text
+    .replace(/\[PROFILE UPDATE\][\s\S]*?\[\/PROFILE UPDATE\]/g, "")
+    .trim();
   if (!clean) return;
   const el = document.createElement("div");
   el.className = `message ${type}`;
@@ -304,19 +253,10 @@ async function generateBotReply(userText) {
   const data = await res.json();
   if (data.profileUpdate && Object.keys(data.profileUpdate).length) {
     Object.assign(userProfileState, data.profileUpdate);
-    await setDoc(
-      doc(db, "users", currentUser.uid),
-      { profile: userProfileState, updatedAt: serverTimestamp() },
-      { merge: true }
-    );
+    await setDoc(doc(db, "users", currentUser.uid), {
+      profile:      userProfileState,
+      updatedAt:    serverTimestamp()
+    }, { merge: true });
   }
   return data.reply || "";
 }
-
-// Expose handleKey globally
-window.handleKey = (e) => {
-  if (e.key === "Enter" && !e.shiftKey) {
-    e.preventDefault();
-    sendMessage();
-  }
-};
