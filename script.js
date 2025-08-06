@@ -78,6 +78,7 @@ const profileQuestions = [
 
 let currentUser = null;
 let currentQuestionKey = null;
+let firstMessageSent = false;
 
 // -------------------------------
 // AUTH LOGIC + FIRESTORE USER SAVE
@@ -123,7 +124,7 @@ async function saveUserToFirestore(user) {
 // -------------------------------
 function showChatUI() {
   loginBtn.style.display = "none";
-  intro.style.display = "none";
+  // ⚠️ intro (med typewriter) visas fortfarande
   chatWrapper.style.display = "flex";
 }
 
@@ -177,6 +178,12 @@ function handleKey(event) {
 async function sendMessage() {
   const text = input.value.trim();
   if (!text) return;
+
+  // ✅ Dölj intro (typewriter) efter första meddelandet
+  if (!firstMessageSent) {
+    intro.style.display = "none";
+    firstMessageSent = true;
+  }
 
   appendMessage("user", text);
   input.value = "";
