@@ -42,6 +42,9 @@ const intro = document.getElementById("intro");
 const input = document.getElementById("userInput");
 const sendBtn = document.getElementById("sendBtn");
 const messages = document.getElementById("messages");
+const userInfo = document.getElementById("userInfo");
+const userName = document.getElementById("userName");
+const userPhoto = document.getElementById("userPhoto");
 
 // -------------------------------
 // USER PROFILE STATE
@@ -88,7 +91,7 @@ loginBtn.addEventListener("click", () => {
     .then(async result => {
       const user = result.user;
       currentUser = user;
-      console.log("✅ Logged in as", user.displayName);
+      showUserInfo(user);
       await saveUserToFirestore(user);
       showChatUI();
       askNextProfileQuestion();
@@ -101,12 +104,19 @@ loginBtn.addEventListener("click", () => {
 onAuthStateChanged(auth, async user => {
   if (user) {
     currentUser = user;
-    console.log("🔁 Already logged in as", user.displayName);
+    showUserInfo(user);
     await saveUserToFirestore(user);
     showChatUI();
     askNextProfileQuestion();
   }
 });
+
+function showUserInfo(user) {
+  loginBtn.style.display = "none";
+  userInfo.style.display = "flex";
+  userName.textContent = user.displayName || "Runner";
+  userPhoto.src = user.photoURL || "default-avatar.png";
+}
 
 async function saveUserToFirestore(user) {
   const userRef = doc(db, "users", user.uid);
@@ -123,8 +133,6 @@ async function saveUserToFirestore(user) {
 // UI CONTROL
 // -------------------------------
 function showChatUI() {
-  loginBtn.style.display = "none";
-  // ⚠️ intro (med typewriter) visas fortfarande
   chatWrapper.style.display = "flex";
 }
 
@@ -179,7 +187,7 @@ async function sendMessage() {
   const text = input.value.trim();
   if (!text) return;
 
-  // ✅ Dölj intro (typewriter) efter första meddelandet
+  // Dölj intro efter första meddelandet
   if (!firstMessageSent) {
     intro.style.display = "none";
     firstMessageSent = true;
@@ -246,7 +254,6 @@ function askNextProfileQuestion() {
 
   userProfileState.profileComplete = true;
 
-  // 👇 Val av specialist
   appendMessage("bot", "✅ Thanks! One last thing: Who would you like to talk to today?");
   const options = [
     { label: "🏃 Coach", value: "coach" },
@@ -285,29 +292,6 @@ async function saveMessageToFirestore(sender, text) {
     text,
     timestamp: serverTimestamp()
   });
-}
-
-async function requestPlanFromGPT() {
-  const userRef = doc(db, "users", currentUser.uid);
-  const snapshot = await getDoc(userRef);
-  const profile = snapshot.data();
-
-  const response = await fetch('/.netlify/functions/ask-gpt', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      message: `Create a training plan for this user: ${JSON.stringify(profile)}`,
-      userProfile: {
-        name: userProfileState.name || currentUser?.displayName || null,
-        language: userProfileState.language || "english",
-        ...userProfileState
-      }
-    })
-  });
-
-  const data = await response.json();
-  appendMessage("bot", data.reply || "Could not generate plan.");
-  await saveMessageToFirestore("bot", data.reply || "Could not generate plan.");
 }
 
 async function generateBotReply(userText) {
