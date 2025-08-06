@@ -217,12 +217,15 @@ async function sendMessage() {
 }
 
 function appendMessage(type, text) {
+  const cleaned = text.replace(/\[PROFILE UPDATE\][\s\S]*?\[\/PROFILE UPDATE\]/g, '').trim();
+  if (!cleaned) return;
+
   const msg = document.createElement("div");
   msg.className = `message ${type}`;
   if (type === "bot") {
-    msg.innerHTML = `<span class="bot-avatar">🤖</span>${text}`;
+    msg.innerHTML = `<span class="bot-avatar">🤖</span>${cleaned}`;
   } else {
-    msg.textContent = text;
+    msg.textContent = cleaned;
   }
   messages.appendChild(msg);
 }
@@ -297,5 +300,20 @@ async function generateBotReply(userText) {
   });
 
   const data = await response.json();
+
+  // 🔄 Spara eventuella profiluppdateringar från GPT
+  if (data.profileUpdate && Object.keys(data.profileUpdate).length > 0) {
+    try {
+      Object.assign(userProfileState, data.profileUpdate);
+      await setDoc(doc(db, "users", currentUser.uid), {
+        profile: userProfileState,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+      console.log("✅ Firestore profile updated:", data.profileUpdate);
+    } catch (err) {
+      console.error("❌ Failed to update Firestore:", err);
+    }
+  }
+
   return data.reply || "Sorry, I couldn’t generate a reply.";
 }
