@@ -33,7 +33,6 @@ User profile:
 - Birth year: ${userProfile?.birthYear || "❓ unknown"}
 - 5K time: ${userProfile?.current5kTime || "❓ unknown"}
 - Weekly sessions: ${userProfile?.weeklySessions || "❓ unknown"}
-
 `;
 
     if (missingFields.length > 0) {
@@ -73,11 +72,16 @@ Avoid Swedish expressions.`;
     });
 
     const data = await response.json();
+    const replyText = data.choices?.[0]?.message?.content || "Sorry, I couldn't think of a reply.";
+
+    // 🧠 Extrahera profiluppdateringar från GPT:s svar
+    const profileUpdate = extractProfileFields(replyText);
 
     return {
       statusCode: 200,
       body: JSON.stringify({
-        reply: data.choices?.[0]?.message?.content || "Sorry, I couldn't think of a reply."
+        reply: replyText,
+        profileUpdate
       })
     };
 
@@ -89,3 +93,26 @@ Avoid Swedish expressions.`;
     };
   }
 };
+
+// -------------------------
+// 🔍 Enkelt extraktionsfilter
+// -------------------------
+function extractProfileFields(text) {
+  const profileUpdate = {};
+  
+  const matchName = text.match(/(?:Your name is|You are called|Hej|Hello)\s([A-ZÅÄÖa-zåäö]+)/);
+  const matchLanguage = text.match(/(?:Language:|language is|Språk:)\s([A-Za-zåäöÅÄÖ]+)/);
+  const matchGender = text.match(/(?:Gender:|gender is|You are a|Du är en)\s([A-Za-zåäöÅÄÖ]+)/);
+  const match5kTime = text.match(/(?:5K|5-kilometer)\s?(?:time|tid)?(?:\s*[:\-–])?\s*(\d{1,2}:?\d{0,2})/);
+  const matchBirthYear = text.match(/(?:born in|född\s?)(\d{4})/);
+  const matchSessions = text.match(/(?:run|springer)\s?(\d)\s?(?:times|gånger)\s?(?:per week|i veckan)/i);
+
+  if (matchName) profileUpdate.name = matchName[1];
+  if (matchLanguage) profileUpdate.language = matchLanguage[1];
+  if (matchGender) profileUpdate.gender = matchGender[1];
+  if (match5kTime) profileUpdate.current5kTime = match5kTime[1];
+  if (matchBirthYear) profileUpdate.birthYear = matchBirthYear[1];
+  if (matchSessions) profileUpdate.weeklySessions = matchSessions[1];
+
+  return profileUpdate;
+}
