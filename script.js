@@ -58,6 +58,7 @@ const userProfileState = {
   raceComingUp: null,
   raceDate: null,
   raceDistance: null,
+  agent: null,
   profileComplete: false
 };
 
@@ -189,12 +190,6 @@ async function sendMessage() {
       updatedAt: serverTimestamp()
     }, { merge: true });
     currentQuestionKey = askNextProfileQuestion();
-
-    if (userProfileState.profileComplete) {
-      appendMessage("bot", "✅ Thanks! Now let me analyze your goals...");
-      await saveMessageToFirestore("bot", "✅ Thanks! Now let me analyze your goals...");
-      requestPlanFromGPT();
-    }
     return;
   }
 
@@ -241,7 +236,38 @@ function askNextProfileQuestion() {
       return q.key;
     }
   }
+
   userProfileState.profileComplete = true;
+
+  // 👇 Val av specialist
+  appendMessage("bot", "✅ Thanks! One last thing: Who would you like to talk to today?");
+  const options = [
+    { label: "🏃 Coach", value: "coach" },
+    { label: "🎯 Race Planner", value: "race-planner" },
+    { label: "🧠 Strategist", value: "strategist" },
+    { label: "🍽️ Nutritionist", value: "nutritionist" },
+    { label: "🩹 Injury Assistant", value: "injury-assistant" }
+  ];
+  options.forEach(opt => {
+    const btn = document.createElement("button");
+    btn.textContent = opt.label;
+    btn.className = "option-button";
+    btn.onclick = async () => {
+      userProfileState.agent = opt.value;
+      await setDoc(doc(db, "users", currentUser.uid), {
+        profile: userProfileState,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+
+      appendMessage("user", opt.label);
+      const introReply = await generateBotReply("Hi! I’m ready to start.");
+      appendMessage("bot", introReply);
+      await saveMessageToFirestore("bot", introReply);
+    };
+    messages.appendChild(btn);
+  });
+  autoScroll();
+
   return null;
 }
 
