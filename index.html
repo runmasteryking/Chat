@@ -8,30 +8,33 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+
+  <!-- HEADER -->
   <header>
     <div class="brand">
       <div class="brand-icon">🏃‍♂️</div>
-      <span class="brand-title">Run Mastery</span>
+      <span class="brand-title">Run Mastery AI</span>
     </div>
-    <nav>
-      <a href="#">Programs</a>
-      <a href="#">Insights</a>
-      <a href="#">For Coaches</a>
-      <a href="#">About</a>
+    <div id="user-area">
       <button id="loginBtn">Log in with Google</button>
-      <a href="#" class="cta-btn">Get started</a>
-    </nav>
+      <div id="userInfo" style="display: none;">
+        <img id="userPhoto" alt="User photo" class="user-avatar" />
+        <span id="userName"></span>
+      </div>
+    </div>
   </header>
 
+  <!-- INTRO / TYPEWRITER -->
   <div class="intro" id="intro">
     <h1>RUN MASTERY</h1>
     <p>Chat with your AI coach to <span id="typewriter"></span></p>
   </div>
 
+  <!-- CHAT WRAPPER -->
   <div id="chat-wrapper" style="display: none;">
     <div id="messages">
       <div class="message bot">
-        <span class="bot-avatar"></span>
+        <span class="bot-avatar">🤖</span>
         Hi! What can I do for you?
       </div>
     </div>
@@ -41,8 +44,9 @@
     </div>
   </div>
 
-  <!-- Module scripts -->
+  <!-- SCRIPTS -->
   <script type="module" src="firebase-config.js"></script>
   <script type="module" src="script.js"></script>
+
 </body>
 </html>
