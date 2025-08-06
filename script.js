@@ -38,6 +38,34 @@ const db = getFirestore(app);
 const loginBtn = document.getElementById("loginBtn");
 const chatWrapper = document.getElementById("chat-wrapper");
 const intro = document.getElementById("intro");
+const input = document.getElementById("userInput");
+const sendBtn = document.getElementById("sendBtn");
+const messages = document.getElementById("messages");
+
+// -------------------------------
+// USER PROFILE STATE
+// -------------------------------
+const userProfileState = {
+  gender: null,
+  birthYear: null,
+  level: null,
+  weeklySessions: null,
+  current5kTime: null,
+  injuryNotes: null,
+  profileComplete: false
+};
+
+const profileQuestions = [
+  { key: "gender", question: "First, what's your gender?" },
+  { key: "birthYear", question: "What year were you born?" },
+  { key: "level", question: "How experienced are you with running? (beginner, intermediate, advanced)" },
+  { key: "weeklySessions", question: "How many times do you run per week on average?" },
+  { key: "current5kTime", question: "What’s your current 5K time (or best guess)?" },
+  { key: "injuryNotes", question: "Do you currently have any injuries or limitations?" }
+];
+
+let currentUser = null;
+let currentQuestionKey = null;
 
 // -------------------------------
 // AUTH LOGIC + FIRESTORE USER SAVE
@@ -46,9 +74,11 @@ loginBtn.addEventListener("click", () => {
   signInWithPopup(auth, provider)
     .then(async result => {
       const user = result.user;
+      currentUser = user;
       console.log("✅ Logged in as", user.displayName);
       await saveUserToFirestore(user);
       showChatUI();
+      askNextProfileQuestion();
     })
     .catch(error => {
       console.error("❌ Login failed:", error);
@@ -57,9 +87,11 @@ loginBtn.addEventListener("click", () => {
 
 onAuthStateChanged(auth, async user => {
   if (user) {
+    currentUser = user;
     console.log("🔁 Already logged in as", user.displayName);
     await saveUserToFirestore(user);
     showChatUI();
+    askNextProfileQuestion();
   }
 });
 
@@ -119,10 +151,6 @@ typeText(phrases[currentPhrase]);
 // -------------------------------
 // CHAT FUNCTIONALITY
 // -------------------------------
-const input = document.getElementById("userInput");
-const sendBtn = document.getElementById("sendBtn");
-const messages = document.getElementById("messages");
-
 sendBtn.addEventListener("click", sendMessage);
 input.addEventListener("keydown", handleKey);
 
@@ -140,6 +168,20 @@ async function sendMessage() {
   appendMessage("user", text);
   input.value = "";
   autoScroll();
+
+  if (!userProfileState.profileComplete && currentQuestionKey) {
+    userProfileState[currentQuestionKey] = text;
+    currentQuestionKey = askNextProfileQuestion();
+
+    if (userProfileState.profileComplete) {
+      await setDoc(doc(db, "users", currentUser.uid), {
+        profile: userProfileState,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+    }
+
+    return;
+  }
 
   const thinking = document.createElement("div");
   thinking.className = "message bot thinking";
@@ -173,6 +215,18 @@ function appendMessage(type, text) {
 
 function autoScroll() {
   messages.scrollTop = messages.scrollHeight;
+}
+
+function askNextProfileQuestion() {
+  for (const q of profileQuestions) {
+    if (!userProfileState[q.key]) {
+      appendMessage("bot", q.question);
+      return q.key;
+    }
+  }
+  userProfileState.profileComplete = true;
+  appendMessage("bot", "✅ Thanks! Your profile is complete. Now, let’s talk about your race goals.");
+  return null;
 }
 
 async function generateBotReply(userText) {
