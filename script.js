@@ -179,6 +179,7 @@ async function sendMessage() {
   appendMessage("user", text);
   input.value = "";
   autoScroll();
+  await saveMessageToFirestore("user", text);
 
   if (!userProfileState.profileComplete && currentQuestionKey) {
     userProfileState[currentQuestionKey] = text;
@@ -189,7 +190,9 @@ async function sendMessage() {
         profile: userProfileState,
         updatedAt: serverTimestamp()
       }, { merge: true });
+
       appendMessage("bot", "✅ Thanks! Now let me analyze your goals...");
+      await saveMessageToFirestore("bot", "✅ Thanks! Now let me analyze your goals...");
       requestPlanFromGPT();
     }
     return;
@@ -205,9 +208,11 @@ async function sendMessage() {
     const reply = await generateBotReply(text);
     thinking.remove();
     appendMessage("bot", reply);
+    await saveMessageToFirestore("bot", reply);
   } catch (err) {
     thinking.remove();
     appendMessage("bot", "⚠️ Oops! Something went wrong.");
+    await saveMessageToFirestore("bot", "⚠️ Oops! Something went wrong.");
     console.error(err);
   }
   autoScroll();
@@ -232,11 +237,21 @@ function askNextProfileQuestion() {
   for (const q of profileQuestions) {
     if (!userProfileState[q.key]) {
       appendMessage("bot", q.question);
+      saveMessageToFirestore("bot", q.question);
       return q.key;
     }
   }
   userProfileState.profileComplete = true;
   return null;
+}
+
+async function saveMessageToFirestore(sender, text) {
+  const messageRef = doc(db, "users", currentUser.uid, "messages", Date.now().toString());
+  await setDoc(messageRef, {
+    sender,
+    text,
+    timestamp: serverTimestamp()
+  });
 }
 
 async function requestPlanFromGPT() {
@@ -248,12 +263,18 @@ async function requestPlanFromGPT() {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      message: `Create a training plan for this user: ${JSON.stringify(profile)}`
+      message: `Create a training plan for this user: ${JSON.stringify(profile)}`,
+      userProfile: {
+        name: userProfileState.name || currentUser?.displayName || null,
+        language: userProfileState.language || "english",
+        ...userProfileState
+      }
     })
   });
 
   const data = await response.json();
   appendMessage("bot", data.reply || "Could not generate plan.");
+  await saveMessageToFirestore("bot", data.reply || "Could not generate plan.");
 }
 
 async function generateBotReply(userText) {
@@ -263,9 +284,8 @@ async function generateBotReply(userText) {
     body: JSON.stringify({
       message: userText,
       userProfile: {
-        name: currentUser?.displayName || null,
-        email: currentUser?.email || null,
-        language: "english", // eller "swedish" beroende på framtida inställningar
+        name: userProfileState.name || currentUser?.displayName || null,
+        language: userProfileState.language || "english",
         ...userProfileState
       }
     })
@@ -274,4 +294,3 @@ async function generateBotReply(userText) {
   const data = await response.json();
   return data.reply || "Sorry, I couldn’t generate a reply.";
 }
-
