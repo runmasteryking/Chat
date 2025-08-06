@@ -15,6 +15,7 @@ import {
   doc,
   setDoc,
   getDoc,
+  updateDoc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
@@ -36,21 +37,21 @@ const db = getFirestore(app);
 // -------------------------------
 // DOM ELEMENTS
 // -------------------------------
-const loginBtn = document.getElementById("loginBtn");
+const loginBtn    = document.getElementById("loginBtn");
 const chatWrapper = document.getElementById("chat-wrapper");
-const intro = document.getElementById("intro");
-const input = document.getElementById("userInput");
-const sendBtn = document.getElementById("sendBtn");
-const messages = document.getElementById("messages");
-const userInfo = document.getElementById("userInfo");
-const userName = document.getElementById("userName");
+const intro       = document.getElementById("intro");
+const input       = document.getElementById("userInput");
+const sendBtn     = document.getElementById("sendBtn");
+const messages    = document.getElementById("messages");
+const userInfo    = document.getElementById("userInfo");
+const userName    = document.getElementById("userName");
 
 // -------------------------------
 // USER PROFILE STATE
 // -------------------------------
 const userProfileState = {
   name: null,
-  language: null,
+  language: null,       // "english" or "swedish"
   gender: null,
   birthYear: null,
   level: null,
@@ -65,7 +66,6 @@ const userProfileState = {
 };
 
 const profileQuestions = [
-  { key: "language", question: "What language would you like me to speak? (English, Swedish, etc.)" },
   { key: "name", question: "What should I call you during our training journey?" },
   { key: "gender", question: "What's your gender?" },
   { key: "birthYear", question: "What year were you born?" },
@@ -81,34 +81,43 @@ const profileQuestions = [
 let currentUser = null;
 let currentQuestionKey = null;
 let firstMessageSent = false;
+let firstLangHandled = false;
 
 // -------------------------------
 // AUTH LOGIC + FIRESTORE USER SAVE
 // -------------------------------
 loginBtn.addEventListener("click", () => {
   signInWithPopup(auth, provider)
-    .then(async result => {
-      const user = result.user;
+    .then(async ({ user }) => {
       currentUser = user;
-      showUserInfo(user);
       await saveUserToFirestore(user);
+      showUserInfo(user);
       showChatUI();
       askNextProfileQuestion();
     })
-    .catch(error => {
-      console.error("❌ Login failed:", error);
-    });
+    .catch(err => console.error("❌ Login failed:", err));
 });
 
 onAuthStateChanged(auth, async user => {
   if (user) {
     currentUser = user;
-    showUserInfo(user);
     await saveUserToFirestore(user);
+    showUserInfo(user);
     showChatUI();
     askNextProfileQuestion();
   }
 });
+
+async function saveUserToFirestore(user) {
+  const userRef = doc(db, "users", user.uid);
+  await setDoc(userRef, {
+    name: user.displayName || null,
+    email: user.email || null,
+    photoURL: user.photoURL || null,
+    lastLogin: serverTimestamp(),
+    profile: userProfileState
+  }, { merge: true });
+}
 
 function showUserInfo(user) {
   loginBtn.style.display = "none";
@@ -135,27 +144,17 @@ const phrases = [
   "get faster and stronger",
   "train smarter – not harder"
 ];
-
 let currentPhrase = 0;
 const el = document.getElementById("typewriter");
-
 function typeText(text, i = 0) {
   el.textContent = text.slice(0, i);
-  if (i < text.length) {
-    setTimeout(() => typeText(text, i + 1), 60);
-  } else {
-    setTimeout(() => eraseText(text.length), 1800);
-  }
+  if (i < text.length) setTimeout(() => typeText(text, i+1), 60);
+  else setTimeout(() => eraseText(text.length), 1800);
 }
-
 function eraseText(i) {
   el.textContent = phrases[currentPhrase].slice(0, i);
-  if (i > 0) {
-    setTimeout(() => eraseText(i - 1), 30);
-  } else {
-    currentPhrase = (currentPhrase + 1) % phrases.length;
-    typeText(phrases[currentPhrase]);
-  }
+  if (i>0) setTimeout(() => eraseText(i-1),30);
+  else { currentPhrase = (currentPhrase+1) % phrases.length; typeText(phrases[currentPhrase]); }
 }
 typeText(phrases[currentPhrase]);
 
@@ -163,19 +162,15 @@ typeText(phrases[currentPhrase]);
 // CHAT FUNCTIONALITY
 // -------------------------------
 sendBtn.addEventListener("click", sendMessage);
-input.addEventListener("keydown", handleKey);
-
-function handleKey(event) {
-  if (event.key === 'Enter' && !event.shiftKey) {
-    event.preventDefault();
-    sendMessage();
-  }
-}
+input.addEventListener("keydown", e => {
+  if (e.key==="Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
 
 async function sendMessage() {
   const text = input.value.trim();
   if (!text) return;
 
+  // hide intro on first message
   if (!firstMessageSent) {
     intro.style.display = "none";
     firstMessageSent = true;
@@ -186,19 +181,49 @@ async function sendMessage() {
   autoScroll();
   await saveMessageToFirestore("user", text);
 
+  // ---- Language detection or switch ----
+  // manual switch command
+  const swMatch = text.match(/(?:switch to|byt till|prata på)\s+(english|svenska|swedish)/i);
+  if (swMatch) {
+    let newLang = swMatch[1].toLowerCase().startsWith("sv") ? "swedish" : "english";
+    userProfileState.language = newLang;
+    await setDoc(doc(db,"users",currentUser.uid), {
+      profile: userProfileState, updatedAt: serverTimestamp()
+    }, { merge:true });
+    appendMessage("bot",
+      newLang==="swedish"
+      ? "Självklart! Nu pratar vi på svenska."
+      : "Sure thing! We’ll continue in English."
+    );
+    return;
+  }
+  // auto-detect on first non-command message
+  if (!firstLangHandled && !userProfileState.language) {
+    const isSw = /[åäö]|hej|och/i.test(text);
+    const detected = isSw ? "swedish" : "english";
+    userProfileState.language = detected;
+    await setDoc(doc(db,"users",currentUser.uid), {
+      profile: userProfileState, updatedAt: serverTimestamp()
+    }, { merge:true });
+    // no explicit message, GPT will reply in correct language
+    firstLangHandled = true;
+  }
+
+  // ---- Onboarding questions ----
   if (!userProfileState.profileComplete && currentQuestionKey) {
     userProfileState[currentQuestionKey] = text;
-    await setDoc(doc(db, "users", currentUser.uid), {
-      profile: userProfileState,
-      updatedAt: serverTimestamp()
-    }, { merge: true });
+    await setDoc(doc(db,"users",currentUser.uid), {
+      profile: userProfileState, updatedAt: serverTimestamp()
+    }, { merge:true });
     currentQuestionKey = askNextProfileQuestion();
     return;
   }
 
+  // ---- GPT conversation ----
   const thinking = document.createElement("div");
   thinking.className = "message bot thinking";
-  thinking.innerHTML = '<span class="bot-avatar">🤖</span><div class="dot"></div><div class="dot"></div><div class="dot"></div>';
+  thinking.innerHTML = '<span class="bot-avatar">🤖</span>'
+    +'<div class="dot"></div><div class="dot"></div><div class="dot"></div>';
   messages.appendChild(thinking);
   autoScroll();
 
@@ -209,24 +234,24 @@ async function sendMessage() {
     await saveMessageToFirestore("bot", reply);
   } catch (err) {
     thinking.remove();
-    appendMessage("bot", "⚠️ Oops! Something went wrong.");
-    await saveMessageToFirestore("bot", "⚠️ Oops! Something went wrong.");
+    appendMessage("bot","⚠️ Oops! Something went wrong.");
+    await saveMessageToFirestore("bot","⚠️ Oops! Something went wrong.");
     console.error(err);
   }
   autoScroll();
 }
 
+// -------------------------------
+// MESSAGE HELPERS
+// -------------------------------
 function appendMessage(type, text) {
-  const cleaned = text.replace(/\[PROFILE UPDATE\][\s\S]*?\[\/PROFILE UPDATE\]/g, '').trim();
+  // strip any profile-update block
+  const cleaned = text.replace(/\[PROFILE UPDATE\][\s\S]*?\[\/PROFILE UPDATE\]/g, "").trim();
   if (!cleaned) return;
-
   const msg = document.createElement("div");
   msg.className = `message ${type}`;
-  if (type === "bot") {
-    msg.innerHTML = `<span class="bot-avatar">🤖</span>${cleaned}`;
-  } else {
-    msg.textContent = cleaned;
-  }
+  if (type==="bot") msg.innerHTML = `<span class="bot-avatar">🤖</span>${cleaned}`;
+  else msg.textContent = cleaned;
   messages.appendChild(msg);
 }
 
@@ -234,6 +259,9 @@ function autoScroll() {
   messages.scrollTop = messages.scrollHeight;
 }
 
+// -------------------------------
+// ONBOARDING QUESTIONS
+// -------------------------------
 function askNextProfileQuestion() {
   for (const q of profileQuestions) {
     if (!userProfileState[q.key]) {
@@ -242,77 +270,41 @@ function askNextProfileQuestion() {
       return q.key;
     }
   }
-
   userProfileState.profileComplete = true;
-
-  appendMessage("bot", "✅ Thanks! One last thing: Who would you like to talk to today?");
-  const options = [
-    { label: "🏃 Coach", value: "coach" },
-    { label: "🎯 Race Planner", value: "race-planner" },
-    { label: "🧠 Strategist", value: "strategist" },
-    { label: "🍽️ Nutritionist", value: "nutritionist" },
-    { label: "🩹 Injury Assistant", value: "injury-assistant" }
-  ];
-  options.forEach(opt => {
-    const btn = document.createElement("button");
-    btn.textContent = opt.label;
-    btn.className = "option-button";
-    btn.onclick = async () => {
-      userProfileState.agent = opt.value;
-      await setDoc(doc(db, "users", currentUser.uid), {
-        profile: userProfileState,
-        updatedAt: serverTimestamp()
-      }, { merge: true });
-
-      appendMessage("user", opt.label);
-      const introReply = await generateBotReply("Hi! I’m ready to start.");
-      appendMessage("bot", introReply);
-      await saveMessageToFirestore("bot", introReply);
-    };
-    messages.appendChild(btn);
-  });
-  autoScroll();
-
   return null;
 }
 
+// -------------------------------
+// SAVE FIRESTORE MESSAGE
+// -------------------------------
 async function saveMessageToFirestore(sender, text) {
-  const messageRef = doc(db, "users", currentUser.uid, "messages", Date.now().toString());
-  await setDoc(messageRef, {
-    sender,
-    text,
-    timestamp: serverTimestamp()
-  });
+  const ref = doc(db,"users",currentUser.uid,"messages",Date.now().toString());
+  await setDoc(ref, { sender, text, timestamp: serverTimestamp() });
 }
 
+// -------------------------------
+// GPT CALL + PROFILE UPDATE
+// -------------------------------
 async function generateBotReply(userText) {
-  const response = await fetch('/.netlify/functions/ask-gpt', {
+  const resp = await fetch('/.netlify/functions/ask-gpt', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers:{ 'Content-Type':'application/json' },
     body: JSON.stringify({
       message: userText,
       userProfile: {
-        name: userProfileState.name || currentUser?.displayName || null,
-        language: userProfileState.language || "english",
-        ...userProfileState
+        ...userProfileState,
+        name: userProfileState.name || currentUser?.displayName || null
       }
     })
   });
+  const data = await resp.json();
 
-  const data = await response.json();
-
-  // 🔄 Spara eventuella profiluppdateringar från GPT
-  if (data.profileUpdate && Object.keys(data.profileUpdate).length > 0) {
-    try {
-      Object.assign(userProfileState, data.profileUpdate);
-      await setDoc(doc(db, "users", currentUser.uid), {
-        profile: userProfileState,
-        updatedAt: serverTimestamp()
-      }, { merge: true });
-      console.log("✅ Firestore profile updated:", data.profileUpdate);
-    } catch (err) {
-      console.error("❌ Failed to update Firestore:", err);
-    }
+  // merge and save any profileUpdate
+  if (data.profileUpdate && Object.keys(data.profileUpdate).length>0) {
+    Object.assign(userProfileState, data.profileUpdate);
+    await setDoc(doc(db,"users",currentUser.uid), {
+      profile: userProfileState, updatedAt: serverTimestamp()
+    },{ merge:true });
   }
 
   return data.reply || "Sorry, I couldn’t generate a reply.";
