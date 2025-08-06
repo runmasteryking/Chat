@@ -14,6 +14,7 @@ import {
   getFirestore,
   doc,
   setDoc,
+  getDoc,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
@@ -52,6 +53,9 @@ const userProfileState = {
   weeklySessions: null,
   current5kTime: null,
   injuryNotes: null,
+  raceComingUp: null,
+  raceDate: null,
+  raceDistance: null,
   profileComplete: false
 };
 
@@ -61,7 +65,10 @@ const profileQuestions = [
   { key: "level", question: "How experienced are you with running? (beginner, intermediate, advanced)" },
   { key: "weeklySessions", question: "How many times do you run per week on average?" },
   { key: "current5kTime", question: "What’s your current 5K time (or best guess)?" },
-  { key: "injuryNotes", question: "Do you currently have any injuries or limitations?" }
+  { key: "injuryNotes", question: "Do you currently have any injuries or limitations?" },
+  { key: "raceComingUp", question: "Do you have a race coming up?" },
+  { key: "raceDate", question: "When is the race? (Please write the date)" },
+  { key: "raceDistance", question: "What distance is the race? (e.g. 5K, 10K, half marathon)" }
 ];
 
 let currentUser = null;
@@ -178,8 +185,9 @@ async function sendMessage() {
         profile: userProfileState,
         updatedAt: serverTimestamp()
       }, { merge: true });
+      appendMessage("bot", "✅ Thanks! Now let me analyze your goals...");
+      requestPlanFromGPT();
     }
-
     return;
   }
 
@@ -198,7 +206,6 @@ async function sendMessage() {
     appendMessage("bot", "⚠️ Oops! Something went wrong.");
     console.error(err);
   }
-
   autoScroll();
 }
 
@@ -225,8 +232,24 @@ function askNextProfileQuestion() {
     }
   }
   userProfileState.profileComplete = true;
-  appendMessage("bot", "✅ Thanks! Your profile is complete. Now, let’s talk about your race goals.");
   return null;
+}
+
+async function requestPlanFromGPT() {
+  const userRef = doc(db, "users", currentUser.uid);
+  const snapshot = await getDoc(userRef);
+  const profile = snapshot.data();
+
+  const response = await fetch('/.netlify/functions/ask-gpt', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      message: `Create a training plan for this user: ${JSON.stringify(profile)}`
+    })
+  });
+
+  const data = await response.json();
+  appendMessage("bot", data.reply || "Could not generate plan.");
 }
 
 async function generateBotReply(userText) {
