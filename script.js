@@ -35,6 +35,41 @@ const input       = document.getElementById("userInput");
 const sendBtn     = document.getElementById("sendBtn");
 const userInfo    = document.getElementById("userInfo");
 const userName    = document.getElementById("userName");
+const typeEl      = document.getElementById("typewriter");
+
+// -------------------------------
+// TYPEWRITER ANIMATION
+// -------------------------------
+const phrases = [
+  "reach your goals",
+  "beat 10K under 50 mins",
+  "build a training plan that fits you",
+  "get faster and stronger",
+  "train smarter – not harder"
+];
+let currentPhrase = 0;
+
+function typeText(text, i = 0) {
+  typeEl.textContent = text.slice(0, i);
+  if (i < text.length) {
+    setTimeout(() => typeText(text, i + 1), 60);
+  } else {
+    setTimeout(() => eraseText(text.length), 1800);
+  }
+}
+
+function eraseText(i) {
+  typeEl.textContent = phrases[currentPhrase].slice(0, i);
+  if (i > 0) {
+    setTimeout(() => eraseText(i - 1), 30);
+  } else {
+    currentPhrase = (currentPhrase + 1) % phrases.length;
+    typeText(phrases[currentPhrase]);
+  }
+}
+
+// Start the typewriter
+typeText(phrases[currentPhrase]);
 
 // -------------------------------
 // USER PROFILE STATE
@@ -74,7 +109,7 @@ let firstMessageSent = false;
 let firstLangHandled = false;
 
 // -------------------------------
-// AUTH + LOAD PROFILE
+// AUTH + PROFILE LOAD
 // -------------------------------
 loginBtn.addEventListener("click", async () => {
   try {
@@ -103,12 +138,14 @@ async function loadProfile(uid) {
   if (snap.exists() && snap.data().profile) {
     Object.assign(userProfileState, snap.data().profile);
   }
-  // uppdatera lastLogin & profil
-  await setDoc(ref, { lastLogin: serverTimestamp(), profile: userProfileState }, { merge: true });
+  await setDoc(ref, {
+    lastLogin: serverTimestamp(),
+    profile: userProfileState
+  }, { merge: true });
 }
 
 // -------------------------------
-// SHOW USERINFO + CHAT‐UI
+// UI CONTROL
 // -------------------------------
 function showUserInfo(user) {
   loginBtn.style.display = "none";
@@ -123,7 +160,7 @@ function showChatUI() {
 }
 
 // -------------------------------
-// CHAT LOGIC
+// CHAT FUNCTIONALITY
 // -------------------------------
 sendBtn.addEventListener("click", sendMessage);
 input.addEventListener("keydown", e => {
@@ -137,7 +174,7 @@ async function sendMessage() {
   const text = input.value.trim();
   if (!text) return;
 
-  // Första användarmeddelandet startar onboarding
+  // First user message triggers onboarding
   if (!firstMessageSent) {
     intro.style.display = "none";
     firstMessageSent = true;
@@ -148,20 +185,19 @@ async function sendMessage() {
     return;
   }
 
-  // Visa användartext
+  // Show user text
   appendMessage("user", text);
   await saveMsg("user", text);
   input.value = "";
   autoScroll();
 
-  // Språkbyte‐kommando
+  // Language switch command
   const sw = text.match(/(?:switch to|byt till|prata på)\s+(english|svenska|swedish)/i);
   if (sw) {
     const nl = sw[1].toLowerCase().startsWith("sv") ? "swedish" : "english";
     userProfileState.language = nl;
     await setDoc(doc(db, "users", currentUser.uid), {
-      profile: userProfileState,
-      updatedAt: serverTimestamp()
+      profile: userProfileState, updatedAt: serverTimestamp()
     }, { merge: true });
     appendMessage("bot",
       nl === "swedish"
@@ -172,23 +208,21 @@ async function sendMessage() {
     return;
   }
 
-  // Auto-detect språk på första meddelandet
+  // Auto-detect language once
   if (!firstLangHandled && !userProfileState.language) {
     const isSw = /[åäö]|hej|och/i.test(text);
     userProfileState.language = isSw ? "swedish" : "english";
     await setDoc(doc(db, "users", currentUser.uid), {
-      profile: userProfileState,
-      updatedAt: serverTimestamp()
+      profile: userProfileState, updatedAt: serverTimestamp()
     }, { merge: true });
     firstLangHandled = true;
   }
 
-  // Onboarding – spara svar och fråga nästa
+  // Onboarding: save answer & ask next
   if (!userProfileState.profileComplete && currentQuestionKey) {
     userProfileState[currentQuestionKey] = text;
     await setDoc(doc(db, "users", currentUser.uid), {
-      profile: userProfileState,
-      updatedAt: serverTimestamp()
+      profile: userProfileState, updatedAt: serverTimestamp()
     }, { merge: true });
 
     const idx = profileQuestions.findIndex(q => q.key === currentQuestionKey);
@@ -203,7 +237,7 @@ async function sendMessage() {
     return;
   }
 
-  // När onboarding är klar – AI-anrop
+  // After onboarding, call AI
   const thinking = document.createElement("div");
   thinking.className = "message bot thinking";
   thinking.textContent = "...";
@@ -268,14 +302,13 @@ async function generateBotReply(userText) {
   if (data.profileUpdate && Object.keys(data.profileUpdate).length) {
     Object.assign(userProfileState, data.profileUpdate);
     await setDoc(doc(db, "users", currentUser.uid), {
-      profile: userProfileState,
-      updatedAt: serverTimestamp()
+      profile: userProfileState, updatedAt: serverTimestamp()
     }, { merge: true });
   }
   return data.reply || '';
 }
 
-// Överför handleKey så den syns globalt
+// Expose handleKey globally
 window.handleKey = (e) => {
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
