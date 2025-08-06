@@ -47,6 +47,8 @@ const messages = document.getElementById("messages");
 // USER PROFILE STATE
 // -------------------------------
 const userProfileState = {
+  name: null,
+  language: null,
   gender: null,
   birthYear: null,
   level: null,
@@ -60,7 +62,9 @@ const userProfileState = {
 };
 
 const profileQuestions = [
-  { key: "gender", question: "First, what's your gender?" },
+  { key: "language", question: "What language would you like me to speak? (English, Swedish, etc.)" },
+  { key: "name", question: "What should I call you during our training journey?" },
+  { key: "gender", question: "What's your gender?" },
   { key: "birthYear", question: "What year were you born?" },
   { key: "level", question: "How experienced are you with running? (beginner, intermediate, advanced)" },
   { key: "weeklySessions", question: "How many times do you run per week on average?" },
@@ -256,7 +260,10 @@ async function generateBotReply(userText) {
   const response = await fetch('/.netlify/functions/ask-gpt', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message: userText })
+    body: JSON.stringify({
+      message: userText,
+      userProfile: userProfileState
+    })
   });
 
   const data = await response.json();
