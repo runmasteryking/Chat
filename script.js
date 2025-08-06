@@ -44,7 +44,6 @@ const sendBtn = document.getElementById("sendBtn");
 const messages = document.getElementById("messages");
 const userInfo = document.getElementById("userInfo");
 const userName = document.getElementById("userName");
-const userPhoto = document.getElementById("userPhoto");
 
 // -------------------------------
 // USER PROFILE STATE
@@ -113,20 +112,8 @@ onAuthStateChanged(auth, async user => {
 
 function showUserInfo(user) {
   loginBtn.style.display = "none";
-  userInfo.style.display = "flex";
+  userInfo.style.display = "block";
   userName.textContent = user.displayName || "Runner";
-  userPhoto.src = user.photoURL || "default-avatar.png";
-}
-
-async function saveUserToFirestore(user) {
-  const userRef = doc(db, "users", user.uid);
-  await setDoc(userRef, {
-    name: user.displayName || null,
-    email: user.email || null,
-    photoURL: user.photoURL || null,
-    lastLogin: serverTimestamp(),
-    profile: userProfileState
-  }, { merge: true });
 }
 
 // -------------------------------
@@ -187,7 +174,6 @@ async function sendMessage() {
   const text = input.value.trim();
   if (!text) return;
 
-  // Dölj intro efter första meddelandet
   if (!firstMessageSent) {
     intro.style.display = "none";
     firstMessageSent = true;
