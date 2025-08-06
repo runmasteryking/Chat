@@ -262,3 +262,27 @@ button:hover {
   background: #FFB800;
   color: #fff;
 }
+
+/* OPTION BUTTONS (for agent selection) */
+.option-button {
+  background: #FFF176;
+  color: #111;
+  font-weight: 600;
+  border: 1px solid #FFD34E;
+  border-radius: 22px;
+  padding: 10px 20px;
+  font-size: 15px;
+  cursor: pointer;
+  margin: 6px 6px 0 0;
+  transition: background 0.2s ease, transform 0.1s ease;
+  display: inline-block;
+}
+
+.option-button:hover {
+  background: #FFD34E;
+  transform: scale(1.02);
+}
+
+.option-button:active {
+  transform: scale(0.98);
+}
