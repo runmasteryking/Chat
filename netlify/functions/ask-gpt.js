@@ -12,20 +12,18 @@ exports.handler = async (event, context) => {
     const requiredFields = ["gender", "birthYear", "current5kTime", "weeklySessions"];
     const missingFields = requiredFields.filter(field => !userProfile?.[field]);
 
-    // 🧠 Bas-prompt
+    // 🧠 Systemprompt
     let systemPrompt = `
-You are Run Mastery AI — a world-class virtual running coach.
-You give motivating, expert-level, and personalized advice to runners of all levels.
+You are Run Mastery AI — a virtual running expert and coach.
+You give short, helpful, and human-sounding answers — as if texting a friend.
 
-Your tone is supportive, smart, and clear. You're having a real conversation 1-on-1 with the runner.
+🟢 Personality:
+- Be encouraging and smart
+- Use short paragraphs (max 2 lines)
+- Avoid repeating the user's name unless it's the first reply
+- Never say you're an AI. You're their personal coach.
 
-✅ Always greet the user by name: "${name}" — especially in your first reply.
-✅ Adapt your advice to their level: "${level}".
-✅ Use short paragraphs.
-❌ Never repeat questions already answered.
-❌ Never say you're an AI — you're their personal running coach.
-
-User profile:
+🟢 User info:
 - Name: ${name}
 - Language: ${language}
 - Level: ${level}
@@ -35,60 +33,48 @@ User profile:
 - Weekly sessions: ${userProfile?.weeklySessions || "❓ unknown"}
 `;
 
+    // Samla in saknade fält om möjligt
     if (missingFields.length > 0) {
       systemPrompt += `
-🟡 The user's profile is incomplete.
-Gently try to collect missing info if it fits naturally into the conversation:
+The user's profile is incomplete.
+If it fits naturally in the conversation, you may ask about:
 ${missingFields.map(field => `- ${field}`).join("\n")}
-But do NOT repeat what the user already told you.`;
+But do NOT repeat anything already said.`;
     }
 
-    // 👤 Specialistroll (agent)
+    // Specialistroll
     switch (agent) {
       case "race-planner":
-        systemPrompt += `
-🎯 You are now the user's *Race Planner*.
-Focus on pacing, tapering, fueling and race-day preparation.`;
+        systemPrompt += `\nYou're the user's Race Planner. Focus on pacing, tapering, and race strategy.`;
         break;
       case "strategist":
-        systemPrompt += `
-🧠 You are now the user's *Strategist*.
-Help with mental tactics, pacing plans and competitive edge.`;
+        systemPrompt += `\nYou're the user's Mental Strategist. Help with mindset, pacing plans and performance focus.`;
         break;
       case "nutritionist":
-        systemPrompt += `
-🍽️ You are now the user's *Nutritionist*.
-Give advice about fueling, hydration and recovery nutrition.`;
+        systemPrompt += `\nYou're the user's Nutrition Coach. Give fueling, hydration and recovery tips.`;
         break;
       case "injury-assistant":
-        systemPrompt += `
-🩹 You are now the user's *Injury Assistant*.
-Help them manage pain, recovery and safe return to training.
-Avoid medical diagnosis — be practical and cautious.`;
+        systemPrompt += `\nYou're the user's Injury Assistant. Help with safe return to running, not medical advice.`;
         break;
       default:
-        systemPrompt += `
-🏃 You are the user's *Training Coach*.
-Focus on programming, structure, consistency and adaptation.`;
+        systemPrompt += `\nYou're the user's Training Coach. Focus on building consistent, personalized training.`;
     }
 
-    // 🌍 Språk
+    // Språk
     if (language === "swedish") {
       systemPrompt += `
-Svara endast på svenska. Använd ett tydligt, varmt och coachande språk.
-Undvik engelska uttryck.`;
+Svar bara på svenska. Skriv som en coachande person, inte en robot. Korta stycken.`;
     } else {
       systemPrompt += `
-Reply only in English. Be friendly, professional, and encouraging.
-Avoid Swedish expressions.`;
+Reply only in English. Keep tone natural, smart, brief.`;
     }
 
-    // 🔁 Profiluppdatering via JSON
+    // Profiluppdatering i JSON
     systemPrompt += `
-If you learn anything new about the user (like gender, birth year or 5K time),
-include it inside a [PROFILE UPDATE] ... [/PROFILE UPDATE] block as valid JSON.`;
+If you learn something new about the runner (like gender, birth year, etc),
+include it in a [PROFILE UPDATE]...[/PROFILE UPDATE] block as JSON.`;
 
-    // 📡 Anrop till OpenAI GPT-4
+    // 📡 GPT-anrop
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -106,13 +92,16 @@ include it inside a [PROFILE UPDATE] ... [/PROFILE UPDATE] block as valid JSON.`
     });
 
     const data = await response.json();
-    const replyText = data.choices?.[0]?.message?.content || "Sorry, I couldn't think of a reply.";
-    const profileUpdate = extractProfileFields(replyText);
+    let rawReply = data.choices?.[0]?.message?.content || "Sorry, I couldn't think of a reply.";
+
+    // Rensa [PROFILE UPDATE] innan visning
+    const profileUpdate = extractProfileFields(rawReply);
+    const cleanedReply = rawReply.replace(/\[PROFILE UPDATE\][\s\S]*?\[\/PROFILE UPDATE\]/g, "").trim();
 
     return {
       statusCode: 200,
       body: JSON.stringify({
-        reply: replyText,
+        reply: cleanedReply,
         profileUpdate
       })
     };
@@ -127,12 +116,11 @@ include it inside a [PROFILE UPDATE] ... [/PROFILE UPDATE] block as valid JSON.`
 };
 
 // -------------------------
-// 🔍 Profilparser (JSON + regex fallback)
+// 🔍 Profilparser (JSON + fallback regex)
 // -------------------------
 function extractProfileFields(text) {
   const profileUpdate = {};
 
-  // ✅ Försök extrahera JSON från [PROFILE UPDATE] block
   const jsonMatch = text.match(/\[PROFILE UPDATE\]([\s\S]*?)\[\/PROFILE UPDATE\]/);
   if (jsonMatch) {
     try {
@@ -143,7 +131,7 @@ function extractProfileFields(text) {
     }
   }
 
-  // ✅ Fallback med regex
+  // Fallbacks
   const matchName = text.match(/(?:Your name is|You are called|Hej|Hello)\s([A-ZÅÄÖa-zåäö]+)/);
   const matchLanguage = text.match(/(?:Language:|language is|Språk:)\s([A-Za-zåäöÅÄÖ]+)/);
   const matchGender = text.match(/(?:Gender:|gender is|You are a|Du är en)\s([A-Za-zåäöÅÄÖ]+)/);
