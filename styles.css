@@ -7,14 +7,15 @@
 html, body {
   margin: 0;
   padding: 0;
-  min-height: 100vh;
   font-family: 'Inter', sans-serif;
-  background: linear-gradient(to top, #FFE36B 0%, #fff9e6 100%);
+  background: linear-gradient(to top, #FFE36B 0%, #fffef7 100%);
   color: #111;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
   position: relative;
 }
 
-/* fade-effekt uppåt hela vägen till toppen */
+/* Fade över hela sidan */
 body::after {
   content: "";
   position: absolute;
@@ -29,11 +30,10 @@ header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 18px 32px;
+  padding: 16px 24px;
   background: transparent;
-  box-shadow: none;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   position: sticky;
   top: 0;
   z-index: 10;
@@ -42,7 +42,8 @@ header {
 .brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  white-space: nowrap;
 }
 
 .brand-icon {
@@ -56,15 +57,13 @@ header {
   justify-content: center;
   font-weight: 900;
   font-size: 1.2rem;
-  color: #111;
 }
 
 .brand-title {
-  font-size: 1.5rem;
+  font-size: 1.4rem;
   font-weight: 800;
-  letter-spacing: -0.25px;
   line-height: 1;
-  white-space: nowrap;
+  letter-spacing: -0.25px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -72,100 +71,79 @@ header {
 #user-area {
   display: flex;
   align-items: center;
-  gap: 14px;
-}
-
-#userInfo {
-  display: none;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
 }
 
 #userName {
   font-weight: 600;
   font-size: 1rem;
-  color: #111;
+  background: #FFD34E;
+  border-radius: 999px;
+  padding: 8px 16px;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+#loginBtn {
+  background: #FFD34E;
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+#userInfo {
+  display: none;
 }
 
 /* INTRO */
 .intro {
   text-align: center;
   padding: 48px 20px 30px;
+  position: relative;
 }
 
 .intro h1 {
   font-weight: 800;
-  font-size: 2.4rem;
-  margin-bottom: 10px;
-  letter-spacing: -0.5px;
+  font-size: 2.3rem;
+  letter-spacing: -0.4px;
+  margin: 0 0 10px;
 }
 
 .intro p {
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   font-weight: 400;
   color: #333;
-  line-height: 1.5;
   margin: 0;
+  line-height: 1.6;
+  min-height: 1.5em;
 }
 
 #typewriter {
   font-weight: 600;
   display: inline-block;
   border-right: 2px solid #111;
-  min-width: 220px;
-  height: 1.5em;
-  vertical-align: bottom;
+  padding-left: 3px;
+  white-space: nowrap;
+  min-width: 80px;
 }
 
-/* CHAT UI */
+/* CHAT WRAPPER */
 #chat-wrapper {
-  margin: 0 auto 40px;
+  margin: 0 auto 48px;
   max-width: 600px;
   background: #fff;
-  border-radius: 32px;
+  border-radius: 28px;
   box-shadow: 0 8px 28px rgba(0,0,0,0.08);
   border: 2px solid #FFD34E;
+  padding: 24px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   position: relative;
   z-index: 1;
-  padding: 24px;
-}
-
-@media (max-width: 640px) {
-  header {
-    padding: 16px;
-  }
-
-  .brand {
-    flex-direction: row;
-    align-items: center;
-  }
-
-  .brand-title {
-    font-size: 1.3rem;
-    font-weight: 700;
-    letter-spacing: -0.25px;
-  }
-
-  #user-area {
-    padding-left: 8px;
-    padding-right: 8px;
-  }
-
-  #chat-wrapper {
-    margin: 20px 12px 40px;
-    padding: 18px;
-    border-radius: 24px;
-  }
-}
-
-@media (max-width: 480px) {
-  .brand-title {
-    font-size: 1rem;
-  }
 }
 
 #messages {
@@ -179,16 +157,16 @@ header {
 }
 
 .message {
-  max-width: 78%;
-  padding: 16px 22px;
-  border-radius: 28px;
+  max-width: 80%;
+  padding: 14px 20px;
+  border-radius: 26px;
   font-size: 16px;
   line-height: 1.7;
   white-space: pre-line;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.02);
   opacity: 0;
   transform: translateY(10px);
   animation: fadeIn 0.35s ease forwards;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.02);
 }
 
 @keyframes fadeIn {
@@ -213,14 +191,14 @@ header {
 }
 
 .bot-avatar {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   background: #FFD34E;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.17rem;
+  font-size: 1.1rem;
   font-weight: 700;
   margin-right: 6px;
   flex-shrink: 0;
@@ -247,13 +225,13 @@ header {
   40% { opacity: 1; }
 }
 
-/* INPUT AREA */
+/* INPUT */
 #input-area {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   padding: 16px 20px;
-  border-radius: 32px;
+  border-radius: 28px;
   background: #fff;
   box-shadow: 0 4px 12px rgba(0,0,0,0.06);
   margin-top: 24px;
@@ -261,23 +239,21 @@ header {
 
 textarea {
   flex: 1;
-  padding: 14px 22px;
-  border-radius: 32px;
+  padding: 14px 20px;
+  border-radius: 24px;
   border: 1px solid #FFD34E;
-  min-height: 48px;
+  min-height: 44px;
   max-height: 120px;
   resize: none;
-  font-size: 16px;
-  font-family: 'Inter', sans-serif;
+  font-size: 15px;
   background: #FFFAE6;
-  box-shadow: 0 1px 4px rgba(255,211,78,0.05);
-  transition: border-color 0.2s;
+  font-family: 'Inter', sans-serif;
 }
 
 textarea:focus {
   outline: none;
-  border-color: #FFB800;
   background: #FFF8CC;
+  border-color: #FFB800;
 }
 
 textarea::placeholder {
@@ -290,12 +266,12 @@ button {
   color: #111;
   font-weight: 700;
   border: none;
-  border-radius: 32px;
-  padding: 0 22px;
-  font-size: 17px;
+  border-radius: 999px;
+  padding: 0 20px;
+  font-size: 16px;
   cursor: pointer;
+  height: 44px;
   transition: background 0.2s, color 0.2s;
-  height: 48px;
 }
 
 button:hover {
@@ -303,26 +279,32 @@ button:hover {
   color: #fff;
 }
 
-/* OPTION BUTTONS */
-.option-button {
-  background: #FFF176;
-  color: #111;
-  font-weight: 600;
-  border: 1px solid #FFD34E;
-  border-radius: 22px;
-  padding: 10px 20px;
-  font-size: 15px;
-  cursor: pointer;
-  margin: 6px 6px 0 0;
-  transition: background 0.2s ease, transform 0.1s ease;
-  display: inline-block;
-}
+/* MOBILANPASSNING */
+@media (max-width: 640px) {
+  header {
+    padding: 12px 16px;
+  }
 
-.option-button:hover {
-  background: #FFD34E;
-  transform: scale(1.02);
-}
+  .brand-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+  }
 
-.option-button:active {
-  transform: scale(0.98);
+  .intro {
+    padding: 36px 16px 28px;
+  }
+
+  .intro h1 {
+    font-size: 2rem;
+  }
+
+  .intro p {
+    font-size: 1rem;
+  }
+
+  #chat-wrapper {
+    margin: 24px 12px 40px;
+    padding: 16px;
+    border-radius: 22px;
+  }
 }
