@@ -14,17 +14,28 @@ html, body {
   position: relative;
 }
 
-/* HEADER */
+/* overlay-fade över hela sidan */
+body::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(255,255,255,0.85) 0%, transparent 30%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* HEADER – transparent med blur */
 header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 18px 24px;
-  background: white;
+  background: transparent;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   position: sticky;
   top: 0;
   z-index: 10;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
   flex-wrap: nowrap;
 }
 
@@ -32,15 +43,15 @@ header {
   display: flex;
   align-items: center;
   gap: 12px;
-  flex-wrap: nowrap;
   white-space: nowrap;
 }
 
 .brand-logo {
   width: 40px;
   height: 40px;
-  object-fit: contain;
-  border-radius: 0;
+  object-fit: cover;
+  border-radius: 50%;
+  background-color: #FFD34E;
   margin-right: 4px;
 }
 
@@ -93,7 +104,7 @@ header {
   color: #333;
   margin: 0;
   line-height: 1.6;
-  min-height: 1.6em; /* Prevent layout shift from typewriter */
+  min-height: 1.6em;
 }
 
 /* CHAT UI */
