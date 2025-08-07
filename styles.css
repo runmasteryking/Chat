@@ -149,41 +149,53 @@ header {
 }
 
 /*──────────────────────────────────────────────────────────────────────────
-  Chat-container
+  Chat-container & wrapper — återställ det snygga fönstret
 ──────────────────────────────────────────────────────────────────────────*/
 .chat-container {
-  position: absolute;
-  top: 88px; /* header height + some margin */
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 0 var(--space-md);
+  /* Ta bort fullskärms-positioneringen */
+  position: static;
+  top: auto;
+  bottom: auto;
+  left: auto;
+  right: auto;
+
+  /* Centrera hela chat-wrapper */
+  display: block;
+  padding: 0;
+  margin: 0;  
 }
 
-/* Inre ruta med fina kanter och skugga */
 #chat-wrapper {
-  width: 100%;
+  /* Centrera och ge utrymme runtom */
+  margin: var(--space-lg) auto;
   max-width: 620px;
+
+  /* Rutans utseende */
   background: var(--clr-white);
+  border: 2px solid var(--clr-primary);
   border-radius: var(--radius-lg);
   box-shadow: 0 12px 28px rgba(0,0,0,0.05);
-  border: 2px solid var(--clr-primary);
+
+  /* Flex-layout inuti */
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-/* Messages */
+/* Messages får en fast höjd med scroll */
 #messages {
   flex: 1;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-md);
   padding: var(--space-md);
+  overflow-y: auto;
+  /* Sätt gärna en max-höjd för desktop */
+  max-height: 400px;
+}
+
+/* Input‐area behåller sin fasta bottenposition inuti wrappern */
+#input-area {
+  padding: var(--space-sm) var(--space-md);
+  background: var(--clr-white);
+  box-shadow: 0 -2px 8px rgba(0,0,0,0.05);
 }
 
 /*──────────────────────────────────────────────────────────────────────────
