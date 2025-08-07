@@ -151,10 +151,18 @@ header {
 /*──────────────────────────────────────────────────────────────────────────
   Chat-wrapper: centrering & utseende
 ──────────────────────────────────────────────────────────────────────────*/
+.chat-container {
+  display: flex;
+  justify-content: center;
+  padding-top: var(--space-lg);
+  position: relative;
+  z-index: 1;
+}
+
 #chat-wrapper {
-  margin: var(--space-lg) auto;     /* luft runtom och centrerat */
+  margin: var(--space-lg) auto;
   width: 100%;
-  max-width: 620px;                 /* begränsa bredden */
+  max-width: 620px;
   background: var(--clr-white);
   border: 2px solid var(--clr-primary);
   border-radius: var(--radius-lg);
@@ -164,17 +172,20 @@ header {
   flex-direction: column;
   overflow: hidden;
   position: relative;
-  z-index: 1;                       /* ovanför fade-overlay */
+  z-index: 2;
 }
 
 /*──────────────────────────────────────────────────────────────────────────
   Meddelandelista
 ──────────────────────────────────────────────────────────────────────────*/
 #messages {
-  flex: 1;                          /* tar all återstående höjd */
+  display: flex;                   /* viktigast: flex + kolumn */
+  flex-direction: column;
+  gap: var(--space-md);
+  flex: 1;                         /* tar resterande höjd */
   padding: var(--space-md);
   overflow-y: auto;
-  max-height: 340px;                /* valfri, för desktop */
+  max-height: 340px;
   background: var(--clr-white);
 }
 
@@ -226,7 +237,7 @@ header {
 }
 
 /*──────────────────────────────────────────────────────────────────────────
-  Input-area: autosize + stick i botten
+  Input-area: autosize + sticky
 ──────────────────────────────────────────────────────────────────────────*/
 #input-area {
   position: sticky;
@@ -238,10 +249,9 @@ header {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
-  margin-top: auto;                 /* fäster längst ner i wrappern */
+  margin-top: auto;
 }
 
-/* Autosize textarea */
 textarea {
   flex: 1;
   font-size: var(--fz-base);
