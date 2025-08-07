@@ -25,31 +25,30 @@ header {
   top: 0;
   z-index: 10;
   box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  flex-wrap: nowrap;
 }
 
 .brand {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
 }
 
-.brand-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #FFD34E 60%, #FFF8E1 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 900;
-  font-size: 1.2rem;
-  color: #111;
+.brand-logo {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  border-radius: 0;
+  margin-right: 4px;
 }
 
 .brand-title {
   font-size: 1.4rem;
   font-weight: 800;
   letter-spacing: -0.25px;
+  line-height: 1;
 }
 
 #user-area {
@@ -78,6 +77,7 @@ header {
 .intro {
   text-align: center;
   padding: 52px 20px 30px;
+  min-height: 90px;
 }
 
 .intro h1 {
@@ -93,6 +93,7 @@ header {
   color: #333;
   margin: 0;
   line-height: 1.6;
+  min-height: 1.6em; /* Prevent layout shift from typewriter */
 }
 
 /* CHAT UI */
@@ -254,7 +255,12 @@ button:hover {
   }
 
   .brand-title {
-    font-size: 1.3rem;
+    font-size: 1.2rem;
+  }
+
+  .brand-logo {
+    width: 32px;
+    height: 32px;
   }
 
   #chat-wrapper {
