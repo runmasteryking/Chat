@@ -152,50 +152,31 @@ header {
   Chat-container & wrapper — återställ det snygga fönstret
 ──────────────────────────────────────────────────────────────────────────*/
 .chat-container {
-  /* Ta bort fullskärms-positioneringen */
-  position: static;
-  top: auto;
-  bottom: auto;
-  left: auto;
-  right: auto;
-
-  /* Centrera hela chat-wrapper */
-  display: block;
-  padding: 0;
-  margin: 0;  
+  /* Centrera wrappern under intro */
+  display: flex;
+  justify-content: center;
+  padding-top: var(--space-lg);
 }
 
 #chat-wrapper {
-  /* Centrera och ge utrymme runtom */
-  margin: var(--space-lg) auto;
+  width: 100%;
   max-width: 620px;
-
-  /* Rutans utseende */
   background: var(--clr-white);
   border: 2px solid var(--clr-primary);
   border-radius: var(--radius-lg);
   box-shadow: 0 12px 28px rgba(0,0,0,0.05);
 
-  /* Flex-layout inuti */
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-/* Messages får en fast höjd med scroll */
+/* Messages får en fixed höjd med scroll */
 #messages {
   flex: 1;
   padding: var(--space-md);
   overflow-y: auto;
-  /* Sätt gärna en max-höjd för desktop */
-  max-height: 400px;
-}
-
-/* Input‐area behåller sin fasta bottenposition inuti wrappern */
-#input-area {
-  padding: var(--space-sm) var(--space-md);
-  background: var(--clr-white);
-  box-shadow: 0 -2px 8px rgba(0,0,0,0.05);
+  max-height: 340px;
 }
 
 /*──────────────────────────────────────────────────────────────────────────
@@ -246,7 +227,7 @@ header {
 }
 
 /*──────────────────────────────────────────────────────────────────────────
-  Input-area (autosize + fixed)
+  Input-area (autosize + sticky)
 ──────────────────────────────────────────────────────────────────────────*/
 #input-area {
   position: sticky;
