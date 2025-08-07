@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Run Mastery AI</title>
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap"
@@ -33,19 +33,17 @@
       <p>Chat with your AI coach to get faster and stronger</p>
     </section>
 
-    <!-- CHAT -->
-    <div class="chat-container">
-      <div id="chat-wrapper" style="display: none;">
-        <div id="messages"></div>
-        <div id="input-area">
-          <textarea
-            id="userInput"
-            placeholder="Type your message…"
-            maxlength="1000"
-            onkeydown="handleKey(event)"
-          ></textarea>
-          <button id="sendBtn">Send</button>
-        </div>
+    <!-- CHAT WRAPPER -->
+    <div id="chat-wrapper" style="display: none;">
+      <div id="messages"></div>
+      <div id="input-area">
+        <textarea
+          id="userInput"
+          placeholder="Type your message…"
+          maxlength="1000"
+          onkeydown="handleKey(event)"
+        ></textarea>
+        <button id="sendBtn">Send</button>
       </div>
     </div>
   </main>
