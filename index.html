@@ -29,15 +29,19 @@
     <p>Chat with your AI coach to get faster and stronger</p>
   </section>
 
-  <!-- CHAT UI -->
-  <div id="chat-wrapper" style="display: none;">
-    <div id="messages"></div>
-    <div id="input-area">
-      <textarea id="userInput"
-                placeholder="Type your message…"
-                maxlength="1000"
-                onkeydown="handleKey(event)"></textarea>
-      <button id="sendBtn">Send</button>
+  <!-- CHAT CONTAINER -->
+  <div class="chat-container">
+    <div id="chat-wrapper" style="display: none;">
+      <div id="messages"></div>
+      <div id="input-area">
+        <textarea
+          id="userInput"
+          placeholder="Type your message…"
+          maxlength="1000"
+          onkeydown="handleKey(event)"
+        ></textarea>
+        <button id="sendBtn">Send</button>
+      </div>
     </div>
   </div>
 
