@@ -1,20 +1,16 @@
 // functions/ask-gpt.js
 const fetch = require("node-fetch");
-const AbortController = require("abort-controller");
 
 exports.handler = async (event) => {
   try {
-    // Säkerställ API‐nyckel
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      console.error("Missing OPENAI_API_KEY");
       return {
         statusCode: 500,
-        body: JSON.stringify({ error: "Server misconfiguration" })
+        body: JSON.stringify({ error: "Server misconfiguration: missing API key" })
       };
     }
 
-    // Parsar indata
     let body;
     try {
       body = JSON.parse(event.body || "{}");
@@ -27,23 +23,22 @@ exports.handler = async (event) => {
       message = "",
       userProfile = {}
     } = body;
-
     if (!message) {
       return { statusCode: 400, body: JSON.stringify({ error: "Missing user message" }) };
     }
 
-    // Bygg upp prompts
-    const basePrompt = buildBasePrompt(systemSummary, recentMessages);
-    const rolePrompt = buildRolePrompt(userProfile.agent);
-    const langPrompt = buildLangPrompt(userProfile.language);
+    // Bygg prompts
+    const fullSystem = [
+      buildBasePrompt(systemSummary, recentMessages),
+      buildRolePrompt(userProfile.agent),
+      buildLangPrompt(userProfile.language)
+    ].filter(Boolean).join("\n\n");
 
-    const fullSystem = [basePrompt, rolePrompt, langPrompt].filter(Boolean).join("\n\n");
-
-    // OpenAI‐anrop med timeout
+    // Anropa OpenAI med timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    const timeout = setTimeout(() => controller.abort(), 30000);
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       signal: controller.signal,
       headers: {
@@ -59,31 +54,20 @@ exports.handler = async (event) => {
         temperature: 0.7
       })
     });
-    clearTimeout(timeoutId);
+    clearTimeout(timeout);
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error("OpenAI API error:", response.status, errText);
-      return {
-        statusCode: 502,
-        body: JSON.stringify({ error: "Upstream API error" })
-      };
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("OpenAI API error:", res.status, errText);
+      return { statusCode: 502, body: JSON.stringify({ error: "Upstream API error" }) };
     }
 
-    const { choices } = await response.json();
+    const { choices } = await res.json();
     const rawReply = (choices?.[0]?.message?.content || "").trim();
-
-    // Extrahera profiluppdateringar
     const profileUpdate = extractProfileUpdate(rawReply);
+    const reply = rawReply.replace(/\[PROFILE UPDATE\][\s\S]*?\[\/PROFILE UPDATE\]/g, "").trim();
 
-    // Rensa undan update‐blocket
-    const cleanedReply = rawReply.replace(/\[PROFILE UPDATE\][\s\S]*?\[\/PROFILE UPDATE\]/g, "").trim();
-
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ reply: cleanedReply, profileUpdate })
-    };
-
+    return { statusCode: 200, body: JSON.stringify({ reply, profileUpdate }) };
   } catch (err) {
     console.error("🔥 GPT Function error:", err);
     return {
@@ -95,39 +79,36 @@ exports.handler = async (event) => {
 
 // ── Hjälpfunktioner ────────────────────────────────────────────
 function buildBasePrompt(summary, recent) {
-  return [
-    "You are Run Mastery AI — a world-class running coach.",
-    "",
-    `💡 Conversation summary:\n${summary}`,
-    "",
-    `💬 Recent messages:\n${recent}`,
-    "",
-    "🎯 Core rules:",
-    "- Speak like a warm, practical human coach.",
-    "- Keep replies short (1–2 paragraphs).",
-    "- Never say you're an AI.",
-    "- Never repeat what the user already said.",
-    "- Always ask a follow-up question—even after \"ok\".",
-    "",
-    "👂 If the user gives a brief answer (e.g. \"20\"), confirm it:",
-    "  \"So your 5K time is 20 minutes? Awesome. What’s next?\"",
-    "",
-    "✅ Greet by name only in your very first reply."
-  ].join("\n");
+  return `
+You are Run Mastery AI — a world-class running coach.
+
+💡 Conversation summary:
+${summary}
+
+💬 Recent messages:
+${recent}
+
+🎯 Core rules:
+- Speak like a warm, practical human coach.
+- Keep replies short (1–2 paragraphs).
+- Never say you're an AI.
+- Never repeat what the user already said.
+- Always ask a follow-up question—even after "ok".
+
+👂 If the user gives a brief answer (e.g. "20"), confirm it:
+  "So your 5K time is 20 minutes? Awesome. What’s next?"
+
+✅ Greet by name only in your very first reply.
+  `.trim();
 }
 
 function buildRolePrompt(agent = "coach") {
   switch ((agent || "").toLowerCase()) {
-    case "race-planner":
-      return "You're their Race Planner: focus on pacing, tapering, race strategy.";
-    case "strategist":
-      return "You're their Mental Strategist: guide mindset, pacing and tactics.";
-    case "nutritionist":
-      return "You're their Nutrition Coach: give fueling, hydration and recovery advice.";
-    case "injury-assistant":
-      return "You're their Injury Assistant: support safe return to running, no diagnoses.";
-    default:
-      return "You're their Training Coach: build consistent, personalized training.";
+    case "race-planner":   return "You're their Race Planner: focus on pacing, tapering, race strategy.";
+    case "strategist":      return "You're their Mental Strategist: guide mindset, pacing and tactics.";
+    case "nutritionist":    return "You're their Nutrition Coach: give fueling, hydration and recovery advice.";
+    case "injury-assistant":return "You're their Injury Assistant: support safe return to running, no diagnoses.";
+    default:                return "You're their Training Coach: build consistent, personalized training.";
   }
 }
 
@@ -138,10 +119,10 @@ function buildLangPrompt(lang = "english") {
 }
 
 function extractProfileUpdate(text) {
-  const match = text.match(/\[PROFILE UPDATE\]([\s\S]*?)\[\/PROFILE UPDATE\]/);
-  if (!match) return {};
+  const m = text.match(/\[PROFILE UPDATE\]([\s\S]*?)\[\/PROFILE UPDATE\]/);
+  if (!m) return {};
   try {
-    return JSON.parse(match[1].trim());
+    return JSON.parse(m[1].trim());
   } catch (e) {
     console.warn("Failed to parse profile JSON:", e);
     return {};
