@@ -18,7 +18,7 @@ import {
 } from "./firebase-config.js";
 
 window.addEventListener("DOMContentLoaded", () => {
-  // DOM elements
+  // ── DOM Elements ──────────────────────────────────────────────────────────
   const loginBtn    = document.getElementById("loginBtn");
   const chatWrapper = document.getElementById("chat-wrapper");
   const intro       = document.getElementById("intro");
@@ -29,12 +29,9 @@ window.addEventListener("DOMContentLoaded", () => {
   const userInfo    = document.getElementById("userInfo");
   const userName    = document.getElementById("userName");
 
-  console.log("Login button exists?", loginBtn);
-
-  // State
+  // ── State ─────────────────────────────────────────────────────────────────
   let currentUser = null;
   let firstMessageSent = false;
-  let currentQuestionKey = null;
 
   const userProfileState = {
     name: null, language: null, gender: null, birthYear: null,
@@ -57,22 +54,36 @@ window.addEventListener("DOMContentLoaded", () => {
     { key:"raceDistance", question:"What distance is the race?" }
   ];
 
-  // AUTH
+  // ── Helper: auto-resize textarea ───────────────────────────────────────────
+  function autoResizeTextarea() {
+    input.style.height = "auto";
+    input.style.height = input.scrollHeight + "px";
+    autoScroll();
+  }
+  input.addEventListener("input", autoResizeTextarea);
+  input.addEventListener("focus", () => {
+    // scrolla så input är synligt vid mobil-tangentbord
+    setTimeout(() => autoScroll(), 300);
+  });
+
+  // ── Authentication ────────────────────────────────────────────────────────
   loginBtn.addEventListener("click", async () => {
     try {
       const { user } = await signInWithPopup(auth, provider);
-      await onUserLoggedIn(user);
+      await handleUserLoggedIn(user);
     } catch (e) {
       console.error("Login failed:", e);
+      alert("Login failed — check console for details.");
     }
   });
 
   onAuthStateChanged(auth, async user => {
-    if (!user) return;
-    await onUserLoggedIn(user);
+    if (user) {
+      await handleUserLoggedIn(user);
+    }
   });
 
-  async function onUserLoggedIn(user) {
+  async function handleUserLoggedIn(user) {
     currentUser = user;
     await loadProfile(user.uid);
     showUserInfo(user);
@@ -91,7 +102,6 @@ window.addEventListener("DOMContentLoaded", () => {
     }, { merge: true });
   }
 
-  // UI
   function showUserInfo(u) {
     loginBtn.style.display = "none";
     userInfo.style.display = "flex";
@@ -100,11 +110,12 @@ window.addEventListener("DOMContentLoaded", () => {
 
   function showChatUI() {
     chatWrapper.style.display = "flex";
-    messages   .style.display = "flex";
-    inputArea  .style.display = "flex";
+    messages.style.display   = "flex";
+    inputArea.style.display  = "flex";
+    autoResizeTextarea();
   }
 
-  // CHAT
+  // ── Chat flow ─────────────────────────────────────────────────────────────
   sendBtn.addEventListener("click", sendMessage);
   input.addEventListener("keydown", e => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -117,113 +128,90 @@ window.addEventListener("DOMContentLoaded", () => {
     const text = input.value.trim();
     if (!text) return;
 
-    // First message: start onboarding
+    // Onboarding first question
     if (!firstMessageSent) {
       intro.style.display = "none";
       firstMessageSent = true;
-      currentQuestionKey = profileQuestions[0].key;
-      appendMessage("bot", profileQuestions[0].question);
-      await saveMsg("bot", profileQuestions[0].question);
-      await updateConversationSummary("bot", profileQuestions[0].question);
+      appendBot(profileQuestions[0].question);
+      await persist("bot", profileQuestions[0].question);
+      await summarize("bot", profileQuestions[0].question);
       input.value = "";
+      autoResizeTextarea();
       return;
     }
 
     // User message
-    appendMessage("user", text);
-    await saveMsg("user", text);
-    await updateConversationSummary("user", text);
+    appendUser(text);
+    await persist("user", text);
+    await summarize("user", text);
     input.value = "";
-    autoScroll();
+    autoResizeTextarea();
 
     // Bot thinking indicator
-    const thinking = document.createElement("div");
-    thinking.className = "message bot thinking";
-    thinking.textContent = "…";
+    const thinking = createMessage("bot", "…", "thinking");
     messages.appendChild(thinking);
     autoScroll();
 
     try {
       const reply = await generateBotReply(text);
       thinking.remove();
-      appendMessage("bot", reply);
-      await saveMsg("bot", reply);
-      await updateConversationSummary("bot", reply);
-    } catch (e) {
+      appendBot(reply);
+      await persist("bot", reply);
+      await summarize("bot", reply);
+    } catch (err) {
       thinking.remove();
-      appendMessage("bot", "⚠️ Something went wrong.");
-      await saveMsg("bot", "⚠️ Something went wrong.");
-      console.error(e);
+      appendBot("⚠️ Something went wrong.");
+      console.error(err);
     }
-
-    autoScroll();
   }
 
-  // Data persistence
-  async function saveMsg(sender, text) {
+  // ── Persistence & Summary ─────────────────────────────────────────────────
+  async function persist(sender, text) {
     const ref = doc(db, "users", currentUser.uid, "messages", Date.now().toString());
     await setDoc(ref, { sender, text, timestamp: serverTimestamp() });
   }
 
-  async function updateConversationSummary(sender, text) {
+  async function summarize(sender, text) {
     const uref = doc(db, "users", currentUser.uid);
     const snap = await getDoc(uref);
     const existing = snap.data().profile.conversationSummary || "";
-    const resp = await fetch("/.netlify/functions/summarize-gpt", {
+    const res = await fetch("/.netlify/functions/summarize-gpt", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {"Content-Type":"application/json"},
       body: JSON.stringify({
         prompt: `Existing summary:\n${existing}\n\n${sender}: ${text}\n\nUpdate summary (<=200 words):`
       })
     });
-    const { summary } = await resp.json();
+    const { summary } = await res.json();
     userProfileState.conversationSummary = summary;
     await setDoc(uref, {
       profile: { conversationSummary: summary }
     }, { merge: true });
   }
 
-  // Helpers
-  function appendMessage(type, text) {
-    const clean = text.replace(/\[PROFILE UPDATE\][\s\S]*?\[\/PROFILE UPDATE\]/g, "").trim();
-    if (!clean) return;
-    const div = document.createElement("div");
-    div.className = `message ${type}`;
-    div.textContent = clean;
-    messages.appendChild(div);
-  }
-
-  function autoScroll() {
-    messages.scrollTop = messages.scrollHeight;
-  }
-
-  // AI call
+  // ── AI Call ────────────────────────────────────────────────────────────────
   async function generateBotReply(userText) {
     const uref = doc(db, "users", currentUser.uid);
     const snap = await getDoc(uref);
     const summary = snap.data().profile.conversationSummary || "";
     const msgsCol = collection(db, "users", currentUser.uid, "messages");
-    const q = query(msgsCol, orderBy("timestamp", "desc"), limit(5));
+    const q = query(msgsCol, orderBy("timestamp","desc"), limit(5));
     const dsnap = await getDocs(q);
-    const recent = dsnap.docs
-      .map(d => `${d.data().sender}: ${d.data().text}`)
-      .reverse().join("\n");
+    const recent = dsnap.docs.map(d => `${d.data().sender}: ${d.data().text}`)
+                           .reverse().join("\n");
     const res = await fetch("/.netlify/functions/ask-gpt", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {"Content-Type":"application/json"},
       body: JSON.stringify({
-        systemSummary:   summary,
-        recentMessages:  recent,
-        message:         userText,
-        userProfile:     { ...userProfileState, name: userProfileState.name || currentUser.displayName }
+        systemSummary:  summary,
+        recentMessages: recent,
+        message:        userText,
+        userProfile:    { ...userProfileState, name: userProfileState.name || currentUser.displayName }
       })
     });
-    if (!res.ok) {
-      console.error("GPT error", res.status, await res.text());
-      return "⚠️ AI didn’t respond.";
-    }
+    if (!res.ok) throw new Error(`GPT error ${res.status}`);
     const data = await res.json();
-    // Handle profile updates
+    // Apply any profile updates
     if (data.profileUpdate && Object.keys(data.profileUpdate).length) {
       Object.assign(userProfileState, data.profileUpdate);
       await setDoc(uref, {
@@ -234,7 +222,31 @@ window.addEventListener("DOMContentLoaded", () => {
     return data.reply || "";
   }
 
-  // Expose for HTML onkeydown
+  // ── Rendering Helpers ─────────────────────────────────────────────────────
+  function createMessage(type, text, extraClass="") {
+    const div = document.createElement("div");
+    div.className = `message ${type}` + (extraClass ? ` ${extraClass}` : "");
+    div.textContent = text;
+    return div;
+  }
+
+  function appendUser(text) {
+    const msg = createMessage("user", text);
+    messages.appendChild(msg);
+    autoScroll();
+  }
+
+  function appendBot(text) {
+    const msg = createMessage("bot", text);
+    messages.appendChild(msg);
+    autoScroll();
+  }
+
+  function autoScroll() {
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  // ── Expose for inline onkeydown ──────────────────────────────────────────
   window.handleKey = e => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
