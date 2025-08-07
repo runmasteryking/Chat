@@ -149,41 +149,37 @@ header {
 }
 
 /*──────────────────────────────────────────────────────────────────────────
-  Chat-container & wrapper — återställ det snygga fönstret
+  Chat-wrapper: centrering & utseende
 ──────────────────────────────────────────────────────────────────────────*/
-.chat-container {
-  position: relative;
-  z-index: 1;               /* placera ovanför overlay */
-  display: flex;
-  justify-content: center;
-  padding-top: var(--space-lg);
-}
-
 #chat-wrapper {
-  position: relative;
-  z-index: 2;
+  margin: var(--space-lg) auto;     /* luft runtom och centrerat */
   width: 100%;
-  max-width: 620px;
+  max-width: 620px;                 /* begränsa bredden */
   background: var(--clr-white);
   border: 2px solid var(--clr-primary);
   border-radius: var(--radius-lg);
   box-shadow: 0 12px 28px rgba(0,0,0,0.05);
+
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
+  z-index: 1;                       /* ovanför fade-overlay */
 }
 
-/* Messages får en fixed höjd med scroll */
+/*──────────────────────────────────────────────────────────────────────────
+  Meddelandelista
+──────────────────────────────────────────────────────────────────────────*/
 #messages {
-  flex: 1;
+  flex: 1;                          /* tar all återstående höjd */
   padding: var(--space-md);
   overflow-y: auto;
-  max-height: 340px;
+  max-height: 340px;                /* valfri, för desktop */
   background: var(--clr-white);
 }
 
 /*──────────────────────────────────────────────────────────────────────────
-  Message bubbles
+  Chattbubblor
 ──────────────────────────────────────────────────────────────────────────*/
 .message {
   max-width: 80%;
@@ -230,7 +226,7 @@ header {
 }
 
 /*──────────────────────────────────────────────────────────────────────────
-  Input-area (autosize + sticky)
+  Input-area: autosize + stick i botten
 ──────────────────────────────────────────────────────────────────────────*/
 #input-area {
   position: sticky;
@@ -238,9 +234,11 @@ header {
   background: var(--clr-white);
   padding: env(safe-area-inset-bottom) var(--space-md) var(--space-md);
   box-shadow: 0 -2px 8px rgba(0,0,0,0.05);
+
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: var(--space-sm);
+  margin-top: auto;                 /* fäster längst ner i wrappern */
 }
 
 /* Autosize textarea */
@@ -261,6 +259,7 @@ textarea:focus {
   border-color: var(--clr-primary-alt);
 }
 
+/* Skicka-knapp */
 #sendBtn {
   background: var(--clr-primary);
   color: var(--clr-text);
@@ -270,7 +269,7 @@ textarea:focus {
   font-size: var(--fz-lg);
   cursor: pointer;
   transition: background .2s;
-  height: 56px;
+  height: 48px;
 }
 
 #sendBtn:hover {
@@ -278,7 +277,7 @@ textarea:focus {
 }
 
 /*──────────────────────────────────────────────────────────────────────────
-  Option-buttons
+  Alternativ-knappar (agentval etc)
 ──────────────────────────────────────────────────────────────────────────*/
 .option-button {
   background: var(--clr-primary-alt);
