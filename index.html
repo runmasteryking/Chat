@@ -4,7 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Run Mastery AI</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap"
+    rel="stylesheet"
+  >
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -18,32 +21,34 @@
     <div id="user-area">
       <button id="loginBtn">Log in with Google</button>
       <div id="userInfo" style="display: none;">
-        <button id="userName" class="user-name-btn"></button>
+        <button id="userName"></button>
       </div>
     </div>
   </header>
 
-  <!-- INTRO -->
-  <section class="intro" id="intro">
-    <h1>RUN MASTERY</h1>
-    <p>Chat with your AI coach to get faster</p>
-  </section>
+  <main>
+    <!-- INTRO -->
+    <section class="intro" id="intro">
+      <h1>RUN MASTERY</h1>
+      <p>Chat with your AI coach to get faster and stronger</p>
+    </section>
 
-  <!-- CHAT CONTAINER -->
-  <div class="chat-container">
-    <div id="chat-wrapper" style="display: none;">
-      <div id="messages"></div>
-      <div id="input-area">
-        <textarea
-          id="userInput"
-          placeholder="Type your message…"
-          maxlength="1000"
-          onkeydown="handleKey(event)"
-        ></textarea>
-        <button id="sendBtn">Send</button>
+    <!-- CHAT -->
+    <div class="chat-container">
+      <div id="chat-wrapper" style="display: none;">
+        <div id="messages"></div>
+        <div id="input-area">
+          <textarea
+            id="userInput"
+            placeholder="Type your message…"
+            maxlength="1000"
+            onkeydown="handleKey(event)"
+          ></textarea>
+          <button id="sendBtn">Send</button>
+        </div>
       </div>
     </div>
-  </div>
+  </main>
 
   <!-- SCRIPTS -->
   <script type="module" src="firebase-config.js"></script>
