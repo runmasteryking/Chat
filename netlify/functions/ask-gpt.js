@@ -3,13 +3,11 @@ const fetch = require("node-fetch");
 
 exports.handler = async (event) => {
   try {
-    // 1) Kolla API-nyckel
+    // 1) API-nyckel och modell
     const apiKey = process.env.OPENAI_API_KEY;
+    const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
     if (!apiKey) {
-      return {
-        statusCode: 500,
-        body: JSON.stringify({ error: "Missing OPENAI_API_KEY" })
-      };
+      return json(500, { error: "Missing OPENAI_API_KEY" });
     }
 
     // 2) Läs request-body
@@ -17,7 +15,7 @@ exports.handler = async (event) => {
     try {
       body = JSON.parse(event.body || "{}");
     } catch {
-      return { statusCode: 400, body: JSON.stringify({ error: "Invalid JSON" }) };
+      return json(400, { error: "Invalid JSON" });
     }
 
     const {
@@ -28,10 +26,10 @@ exports.handler = async (event) => {
     } = body;
 
     if (!message) {
-      return { statusCode: 400, body: JSON.stringify({ error: "Missing message" }) };
+      return json(400, { error: "Missing message" });
     }
 
-    // 3) Extrahera profil
+    // 3) Plocka profil
     const name     = (userProfile.name || "Runner").toString().trim();
     const language = (userProfile.language || "english").toLowerCase();
     const level    = (userProfile.level || "intermediate").toLowerCase();
@@ -88,7 +86,7 @@ If you learn new profile info, output it strictly inside:
 [PROFILE UPDATE]{ "key": "value", ... }[/PROFILE UPDATE]
 `.trim();
 
-    // 5) Skapa meddelanden
+    // 5) Bygg meddelanden
     const messagesForOpenAI = [
       { role: "system", content: systemPrompt },
       { role: "user", content: message }
@@ -102,7 +100,7 @@ If you learn new profile info, output it strictly inside:
         Authorization: `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: "gpt-4",
+        model,
         messages: messagesForOpenAI,
         temperature: 0.7
       })
@@ -112,10 +110,7 @@ If you learn new profile info, output it strictly inside:
     if (!openaiRes.ok) {
       const errText = await openaiRes.text();
       console.error("OpenAI API error:", openaiRes.status, errText);
-      return {
-        statusCode: openaiRes.status,
-        body: JSON.stringify({ error: "OpenAI API error", detail: errText })
-      };
+      return json(openaiRes.status, { error: "OpenAI API error", detail: errText });
     }
 
     const data = await openaiRes.json();
@@ -132,19 +127,24 @@ If you learn new profile info, output it strictly inside:
       }
     }
 
-    const cleanedReply = rawReply.replace(/\[PROFILE UPDATE\][\s\S]*?\[\/PROFILE UPDATE\]/g, "").trim();
+    const cleanedReply = rawReply
+      .replace(/\[PROFILE UPDATE\][\s\S]*?\[\/PROFILE UPDATE\]/g, "")
+      .trim();
 
-    // 9) Returnera
-    return {
-      statusCode: 200,
-      body: JSON.stringify({
-        reply: cleanedReply,
-        profileUpdate
-      })
-    };
+    // 9) Svar
+    return json(200, { reply: cleanedReply, profileUpdate });
 
   } catch (err) {
     console.error("🔥 ask-gpt.js error:", err);
-    return { statusCode: 500, body: JSON.stringify({ error: "Server error", detail: String(err?.message || err) }) };
+    return json(500, { error: "Server error", detail: String(err?.message || err) });
   }
 };
+
+// Hjälpfunktion för konsekventa JSON-svar
+function json(statusCode, obj) {
+  return {
+    statusCode,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(obj)
+  };
+}
