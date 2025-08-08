@@ -64,14 +64,27 @@ header{
    Hero
 ──────────────────────────────────────────────────────────*/
 body>.intro, body>.chat-container{display:grid;justify-items:center}
-.intro{padding-top:clamp(72px,14vh,120px);padding-bottom:8px;text-align:center}
+
+/* Flyttat ner textdelen 40px extra */
+.intro{
+  padding-top:calc(clamp(72px,14vh,120px) + 40px);
+  padding-bottom:8px;
+  text-align:center;
+}
 .intro h1{font-weight:800;letter-spacing:-0.02em;font-size:clamp(36px,6vw,64px);margin-bottom:8px}
 .intro p{color:var(--clr-text-muted);font-size:clamp(16px,1.6vw,20px)}
 
 /* ─────────────────────────────────────────────────────────
    Chat wrapper
 ──────────────────────────────────────────────────────────*/
-.chat-container{width:100%;margin-top:6px;padding:0 var(--space-4) var(--space-12)}
+
+/* Flyttat ner chattfönstret 40px extra */
+.chat-container{
+  width:100%;
+  margin-top:46px; /* tidigare 6px */
+  padding:0 var(--space-4) var(--space-12);
+}
+
 #chat-wrapper{
   width:min(980px,92vw); margin:0 auto; background:var(--clr-white);
   border:1px solid rgba(17,17,17,.08); border-radius:28px;
@@ -129,7 +142,7 @@ body>.intro, body>.chat-container{display:grid;justify-items:center}
   .chip{height:34px;font-size:13px}
 }
 
-/* ===== FINAL OVERRIDES (don’t duplicate these below) ===== */
+/* ===== FINAL OVERRIDES ===== */
 #input-area{display:block !important}
 #input-area .chat-inner{width:100% !important}
 #user-area,#userName,#loginBtn{white-space:nowrap !important}
