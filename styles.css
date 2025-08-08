@@ -255,3 +255,59 @@ body > .chat-container {
   .fab { width: 34px; height: 34px; }
   .chip { height: 34px; font-size: 13px; }
 }
+/* ===== CRITICAL FIXES (place at very end of styles.css) ===== */
+
+/* 1) Action-raden får aldrig radbrytas */
+.chat-actions{
+  display:flex !important;
+  align-items:center !important;
+  gap:8px !important;
+  flex-wrap:nowrap !important;                /* håll allt på en rad */
+  padding:8px 8px !important;
+  border-top:1px solid rgba(0,0,0,0.05) !important;
+  margin-top:6px !important;
+}
+
+/* 2) Vänster sida får krympa, höger sida är fast och pinnad längst till höger */
+.actions-left{
+  display:flex !important;
+  gap:8px !important;
+  flex:1 1 auto !important;                   /* ta kvarvarande utrymme */
+  min-width:0 !important;                     /* tillåt krympning */
+}
+.actions-right{
+  display:flex !important;
+  gap:8px !important;
+  flex:0 0 auto !important;                   /* krymp aldrig knapparna */
+  margin-left:auto !important;                /* håll till höger */
+  white-space:nowrap !important;              /* inga brytningar i chip+send */
+}
+
+/* 3) Knapparna ska inte påverka layout genom krympning */
+.fab, .chip, .chip-icon, .chip-muted{
+  flex:0 0 auto !important;                   /* lås storlek */
+  white-space:nowrap !important;
+}
+
+/* 4) Textarean: en rad, stabil höjd, ellipsis vid för lång text */
+#input-area textarea{
+  width:100% !important;
+  display:block !important;
+  height:44px !important;                     /* stabil kort-höjd */
+  line-height:1.5 !important;
+  padding:8px 12px !important;
+  border:0 !important;
+  outline:0 !important;
+  background:transparent !important;
+  resize:none !important;
+  overflow:hidden !important;
+  white-space:nowrap !important;              /* håll på en rad */
+  text-overflow:ellipsis !important;          /* visa … i slutet */
+}
+#input-area textarea::placeholder{
+  white-space:nowrap !important;
+  text-overflow:ellipsis !important;
+}
+
+/* 5) Header-pill får inte radbrytas (undvik att den växer på konstiga sätt) */
+#user-area, #userName, #loginBtn{ white-space:nowrap !important; }
