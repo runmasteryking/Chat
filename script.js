@@ -42,16 +42,16 @@ window.addEventListener("DOMContentLoaded", () => {
   };
 
   const profileQuestions = [
-    { key:"name", question:"What should I call you?" },
-    { key:"gender", question:"What's your gender?" },
-    { key:"birthYear", question:"What year were you born?" },
-    { key:"level", question:"How experienced are you? (beginner, intermediate, advanced)" },
+    { key:"name",           question:"What should I call you?" },
+    { key:"gender",         question:"What's your gender?" },
+    { key:"birthYear",      question:"What year were you born?" },
+    { key:"level",          question:"How experienced are you? (beginner, intermediate, advanced)" },
     { key:"weeklySessions", question:"How many times do you run per week?" },
-    { key:"current5kTime", question:"What's your current 5K time?" },
-    { key:"injuryNotes", question:"Any injuries or limitations?" },
-    { key:"raceComingUp", question:"Do you have a race coming up?" },
-    { key:"raceDate", question:"When is the race?" },
-    { key:"raceDistance", question:"What distance is the race?" }
+    { key:"current5kTime",  question:"What's your current 5K time?" },
+    { key:"injuryNotes",    question:"Any injuries or limitations?" },
+    { key:"raceComingUp",   question:"Do you have a race coming up?" },
+    { key:"raceDate",       question:"When is the race?" },
+    { key:"raceDistance",   question:"What distance is the race?" }
   ];
 
   // ── Controlled auto-resize textarea ───────────────────────────────────────
@@ -136,26 +136,32 @@ window.addEventListener("DOMContentLoaded", () => {
     const text = input.value.trim();
     if (!text) return;
 
-    // Onboarding first question
-    if (!firstMessageSent) {
+    const isFirst = !firstMessageSent;
+
+    // Stäng hero när första meddelandet skickas
+    if (isFirst) {
       intro.style.display = "none";
       firstMessageSent = true;
-      appendBot(profileQuestions[0].question);
-      await persist("bot", profileQuestions[0].question);
-      await summarize("bot", profileQuestions[0].question);
-      input.value = "";
-      updateTextareaLayout();
-      return;
     }
 
-    // User message
+    // 1) Visa ALLTID användarens meddelande först
     appendUser(text);
     await persist("user", text);
     await summarize("user", text);
     input.value = "";
     updateTextareaLayout();
 
-    // Bot thinking indicator
+    // 2) Onboarding: fråga första profilfrågan EFTER första user-meddelandet (och bara en gång)
+    const needsOnboarding = !userProfileState.profileComplete && isFirst;
+    if (needsOnboarding) {
+      const q = profileQuestions[0].question;
+      appendBot(q);
+      await persist("bot", q);
+      await summarize("bot", q);
+      return; // välj att inte ringa AI direkt – vi vill ha svar på frågan först
+    }
+
+    // 3) Normal AI-flow
     const thinking = createMessage("bot", "…", "thinking");
     messages.appendChild(thinking);
     autoScroll();
@@ -175,11 +181,13 @@ window.addEventListener("DOMContentLoaded", () => {
 
   // ── Persistence & Summary ─────────────────────────────────────────────────
   async function persist(sender, text) {
+    if (!currentUser) return;
     const ref = doc(db, "users", currentUser.uid, "messages", Date.now().toString());
     await setDoc(ref, { sender, text, timestamp: serverTimestamp() });
   }
 
   async function summarize(sender, text) {
+    if (!currentUser) return;
     const uref = doc(db, "users", currentUser.uid);
     const snap = await getDoc(uref);
     const existing = snap.data()?.profile?.conversationSummary || "";
@@ -200,10 +208,12 @@ window.addEventListener("DOMContentLoaded", () => {
     const uref = doc(db, "users", currentUser.uid);
     const snap = await getDoc(uref);
     const summary = snap.data()?.profile?.conversationSummary || "";
+
     const msgsCol = collection(db, "users", currentUser.uid, "messages");
     const q = query(msgsCol, orderBy("timestamp","desc"), limit(5));
     const ds = await getDocs(q);
-    const recent = ds.docs.map(d => `${d.data().sender}: ${d.data().text}`).reverse().join("\n");
+    const recent = ds.docs.map(d => `${d.data().sender}: ${d.data().text}`)
+                         .reverse().join("\n");
 
     const res = await fetch("/.netlify/functions/ask-gpt", {
       method: "POST",
@@ -216,6 +226,7 @@ window.addEventListener("DOMContentLoaded", () => {
       })
     });
     if (!res.ok) throw new Error(`GPT error ${res.status}`);
+
     const data = await res.json();
 
     if (data.profileUpdate && Object.keys(data.profileUpdate).length) {
@@ -232,9 +243,18 @@ window.addEventListener("DOMContentLoaded", () => {
     div.textContent = text;
     return div;
   }
-  function appendUser(text){ messages.appendChild(createMessage("user", text)); autoScroll(); }
-  function appendBot(text){  messages.appendChild(createMessage("bot",  text)); autoScroll(); }
-  function autoScroll(){ messages.scrollTop = messages.scrollHeight; }
+
+  function appendUser(text){
+    messages.appendChild(createMessage("user", text));
+    autoScroll();
+  }
+  function appendBot(text){
+    messages.appendChild(createMessage("bot", text));
+    autoScroll();
+  }
+  function autoScroll(){
+    messages.scrollTop = messages.scrollHeight;
+  }
 
   // Expose for inline onkeydown
   window.handleKey = e => {
