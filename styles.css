@@ -12,7 +12,7 @@
 
   --radius-sm: 8px;
   --radius-md: 16px;
-  --radius-lg: 32px;
+  --radius-lg: 28px;         /* lite tajtare än 32 för Lovable-look */
   --radius-pill: 9999px;
 
   --space-2: 8px;
@@ -41,17 +41,18 @@ html, body {
   background: radial-gradient(1200px 600px at 50% 10%, #fffef4 0%, var(--clr-bg-end) 40%, var(--clr-bg-start) 100%);
 }
 
-/* Sticky header med lätt glas */
+/* ─────────────────────────────────────────────────────────
+   Header – helt transparent, överlagrad
+──────────────────────────────────────────────────────────*/
 header {
-  position: sticky;
-  top: 0;
+  position: absolute;               /* <— över bakgrunden */
+  inset: 0 0 auto 0;
   z-index: 100;
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: var(--space-4) var(--space-8);
-  background: rgba(255,255,255,0.6);
-  backdrop-filter: blur(8px);
+  background: transparent;          /* <— ingen glas/blur */
 }
 
 /* Brand */
@@ -68,19 +69,19 @@ header {
 #loginBtn:hover, #userName:hover { opacity: .9; }
 
 /* ─────────────────────────────────────────────────────────
-   Hero layout (Lovable-känsla)
-   .intro + .chat-container bildar en centrerad “fold”
+   Hero layout – tightare och högre upp (Lovable-känsla)
 ──────────────────────────────────────────────────────────*/
 body > .intro,
 body > .chat-container {
-  /* gör dessa två till ett centrerat block tillsammans */
   display: grid;
   justify-items: center;
 }
 
+/* Tryck upp rubrik mot mitten och minska luft till chatten */
 .intro {
-  min-height: calc(50vh - 60px); /* trycker ned mot mitten */
-  padding: var(--space-12) var(--space-4) var(--space-6);
+  /* placera runt 40–45vh så chatten hamnar nära rubriken */
+  padding-top: clamp(72px, 14vh, 120px);
+  padding-bottom: 8px;               /* <— mindre luft */
   text-align: center;
 }
 
@@ -88,8 +89,8 @@ body > .chat-container {
 .intro h1 {
   font-weight: 800;
   letter-spacing: -0.02em;
-  font-size: clamp(32px, 6vw, 64px);
-  margin-bottom: 10px;
+  font-size: clamp(36px, 6vw, 64px);
+  margin-bottom: 8px;                /* <— tajtare */
 }
 
 /* Mjukare underrubrik */
@@ -99,26 +100,27 @@ body > .chat-container {
 }
 
 /* ─────────────────────────────────────────────────────────
-   Chat-wrapper: stor, centrerad, luftig
+   Chat-wrapper – bredare, rundare, mer “card”
 ──────────────────────────────────────────────────────────*/
 .chat-container {
   width: 100%;
+  margin-top: 6px;                   /* <— nästan ingen luft från rubrik */
   padding: 0 var(--space-4) var(--space-12);
 }
 
 #chat-wrapper {
-  width: min(940px, 92vw);              /* bredare som Lovable */
+  width: min(980px, 92vw);           /* <— bredare */
   margin: 0 auto;
   background: var(--clr-white);
   border: 1px solid rgba(17,17,17,.08);
-  border-radius: 24px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+  border-radius: var(--radius-lg);   /* 28px */
+  box-shadow: 0 10px 28px rgba(0,0,0,0.08);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-/* I “landing”-läget vill vi att input känns som huvudkomponent */
+/* Meddelanden (kan döljas initialt om du vill) */
 #messages {
   display: flex;
   flex-direction: column;
@@ -144,7 +146,7 @@ body > .chat-container {
 .message.user { align-self: flex-end; background: #fff; border: 1px solid rgba(0,0,0,.06); }
 .message.bot  { align-self: flex-start; background: #FFF6BF; }
 
-/* Input-area – stor, luftig, rundad */
+/* Input-området – pill, stort och centralt fokus */
 #input-area {
   display: flex; align-items: center; gap: var(--space-3);
   padding: var(--space-4);
@@ -155,9 +157,9 @@ body > .chat-container {
 textarea {
   flex: 1;
   font-size: 16px;
-  padding: 14px 16px;
+  padding: 16px 18px;                /* lite högre */
   border: 1px solid rgba(17,17,17,.12);
-  border-radius: 9999px;               /* Lovable-pill */
+  border-radius: var(--radius-pill);  /* riktigt pill */
   resize: none; overflow: hidden; line-height: 1.5;
   transition: box-shadow .15s, border-color .15s;
   background: #fff;
@@ -168,12 +170,12 @@ textarea:focus {
   box-shadow: 0 0 0 4px rgba(255, 211, 78, .25);
 }
 
-/* Skicka-knapp – rund, kompakt */
+/* Skicka-knapp – rund och kompakt */
 #sendBtn {
   height: 52px;
   padding: 0 22px;
   border: 0;
-  border-radius: 9999px;
+  border-radius: var(--radius-pill);
   background: var(--clr-primary);
   color: #111;
   font-weight: 700;
@@ -183,12 +185,12 @@ textarea:focus {
 #sendBtn:hover { filter: brightness(0.98); }
 #sendBtn:active { transform: translateY(1px); }
 
-/* Option-knappar (agentval etc) */
+/* Option-knappar */
 .option-button {
   background: #fff;
   color: #111;
   border: 1px solid rgba(17,17,17,.12);
-  border-radius: 9999px;
+  border-radius: var(--radius-pill);
   padding: 8px 14px;
   font-weight: 600;
   cursor: pointer;
@@ -201,6 +203,6 @@ textarea:focus {
 ──────────────────────────────────────────────────────────*/
 @media (max-width: 640px) {
   .brand-logo { width: 36px; height: 36px; }
-  #chat-wrapper { width: min(100%, 94vw); border-radius: 18px; }
+  #chat-wrapper { width: min(100%, 94vw); border-radius: 22px; }
   #sendBtn { height: 48px; padding: 0 18px; }
 }
