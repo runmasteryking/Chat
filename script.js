@@ -54,31 +54,25 @@ window.addEventListener("DOMContentLoaded", () => {
     { key:"raceDistance", question:"What distance is the race?" }
   ];
 
-  // ── Helper: controlled auto-resize textarea ───────────────────────────────
-  const BASE_H = 44;   // single-line baseline height (matches CSS)
-  const MAX_H  = 160;  // max auto-expand height
+  // ── Controlled auto-resize textarea ───────────────────────────────────────
+  const BASE_H = 44;  // single-line baseline (match CSS)
+  const MAX_H  = 160; // cap growth
 
   function updateTextareaLayout() {
     const hasText = input.value.trim().length > 0;
 
     if (!hasText) {
-      // Empty: keep one line, don't wrap placeholder
       input.style.whiteSpace = "nowrap";
       input.style.height = BASE_H + "px";
     } else {
-      // With text: allow wrapping and grow up to MAX_H
       input.style.whiteSpace = "normal";
       input.style.height = "auto";
       input.style.height = Math.min(input.scrollHeight, MAX_H) + "px";
     }
   }
 
-  // Re-layout on input & focus
   input.addEventListener("input", updateTextareaLayout);
-  input.addEventListener("focus", () => {
-    // ensure correct height after any late fonts/layout
-    setTimeout(updateTextareaLayout, 0);
-  });
+  input.addEventListener("focus", () => setTimeout(updateTextareaLayout, 0));
 
   // ── Authentication ────────────────────────────────────────────────────────
   loginBtn.addEventListener("click", async () => {
@@ -125,8 +119,8 @@ window.addEventListener("DOMContentLoaded", () => {
   function showChatUI() {
     chatWrapper.style.display = "flex";
     messages.style.display    = "flex";
-    inputArea.style.display   = "flex";
-    updateTextareaLayout(); // set baseline height/nowrap
+    inputArea.style.display   = "block";  // IMPORTANT: not flex
+    updateTextareaLayout();
   }
 
   // ── Chat flow ─────────────────────────────────────────────────────────────
@@ -198,9 +192,7 @@ window.addEventListener("DOMContentLoaded", () => {
     });
     const { summary } = await res.json();
     userProfileState.conversationSummary = summary;
-    await setDoc(uref, {
-      profile: { conversationSummary: summary }
-    }, { merge: true });
+    await setDoc(uref, { profile: { conversationSummary: summary } }, { merge: true });
   }
 
   // ── AI Call ────────────────────────────────────────────────────────────────
@@ -210,9 +202,9 @@ window.addEventListener("DOMContentLoaded", () => {
     const summary = snap.data()?.profile?.conversationSummary || "";
     const msgsCol = collection(db, "users", currentUser.uid, "messages");
     const q = query(msgsCol, orderBy("timestamp","desc"), limit(5));
-    const dsnap = await getDocs(q);
-    const recent = dsnap.docs.map(d => `${d.data().sender}: ${d.data().text}`)
-                           .reverse().join("\n");
+    const ds = await getDocs(q);
+    const recent = ds.docs.map(d => `${d.data().sender}: ${d.data().text}`).reverse().join("\n");
+
     const res = await fetch("/.netlify/functions/ask-gpt", {
       method: "POST",
       headers: {"Content-Type":"application/json"},
@@ -225,13 +217,10 @@ window.addEventListener("DOMContentLoaded", () => {
     });
     if (!res.ok) throw new Error(`GPT error ${res.status}`);
     const data = await res.json();
-    // Apply any profile updates
+
     if (data.profileUpdate && Object.keys(data.profileUpdate).length) {
       Object.assign(userProfileState, data.profileUpdate);
-      await setDoc(uref, {
-        profile: userProfileState,
-        updatedAt: serverTimestamp()
-      }, { merge: true });
+      await setDoc(uref, { profile: userProfileState, updatedAt: serverTimestamp() }, { merge: true });
     }
     return data.reply || "";
   }
@@ -243,24 +232,11 @@ window.addEventListener("DOMContentLoaded", () => {
     div.textContent = text;
     return div;
   }
+  function appendUser(text){ messages.appendChild(createMessage("user", text)); autoScroll(); }
+  function appendBot(text){  messages.appendChild(createMessage("bot",  text)); autoScroll(); }
+  function autoScroll(){ messages.scrollTop = messages.scrollHeight; }
 
-  function appendUser(text) {
-    const msg = createMessage("user", text);
-    messages.appendChild(msg);
-    autoScroll();
-  }
-
-  function appendBot(text) {
-    const msg = createMessage("bot", text);
-    messages.appendChild(msg);
-    autoScroll();
-  }
-
-  function autoScroll() {
-    messages.scrollTop = messages.scrollHeight;
-  }
-
-  // ── Expose for inline onkeydown ──────────────────────────────────────────
+  // Expose for inline onkeydown
   window.handleKey = e => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
