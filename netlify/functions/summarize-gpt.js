@@ -1,42 +1,70 @@
-// functions/summarize-gpt.js
+// netlify/functions/summarize-gpt.js
 const fetch = require("node-fetch");
 
 exports.handler = async (event) => {
   try {
-    const { prompt } = JSON.parse(event.body);
+    const apiKey = process.env.OPENAI_API_KEY;
+    const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
+    if (!apiKey) return json(500, { error: "Missing OPENAI_API_KEY" });
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    // Läs body
+    let body;
+    try {
+      body = JSON.parse(event.body || "{}");
+    } catch {
+      return json(400, { error: "Invalid JSON" });
+    }
+
+    const prompt = (body.prompt || "").toString();
+    if (!prompt) return json(400, { error: "Missing prompt" });
+
+    // Anropa OpenAI
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`
+        Authorization: `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model: "gpt-4",
+        model,
         messages: [
-          { role: "system", content: "You are a concise summarizer. Keep to 200 words max." },
-          { role: "user",   content: prompt }
+          { role: "system", content: "You are a concise summarizer. Max 200 words. Return plain text unless user explicitly requests JSON." },
+          { role: "user", content: prompt }
         ],
-        temperature: 0.5
+        temperature: 0.3
       })
     });
-    if (!response.ok) throw new Error(await response.text());
-    const data = await response.json();
-    // Antag att GPT svarar med: { "summary": "..." }
-    // Om inte, plocka hela texten som summary
-    const text = data.choices[0].message.content.trim();
-    // Förväntat format: { "summary": "..." }
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("OpenAI Summarizer error:", res.status, errText);
+      return json(res.status, { error: "OpenAI API error", detail: errText });
+    }
+
+    const data = await res.json();
+    const text = (data.choices?.[0]?.message?.content || "").trim();
+
+    // Försök tolka som JSON { summary: "..." }, annars använd texten som summary
     let summary = text;
     try {
-      const obj = JSON.parse(text);
-      summary = obj.summary || summary;
-    } catch {}
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ summary })
-    };
+      const maybe = JSON.parse(text);
+      if (maybe && typeof maybe.summary === "string") {
+        summary = maybe.summary.trim();
+      }
+    } catch { /* ignore, use plain text */ }
+
+    return json(200, { summary });
   } catch (err) {
-    console.error("Summarizer error:", err);
-    return { statusCode: 500, body: "" };
+    console.error("🔥 summarize-gpt.js error:", err);
+    return json(500, { error: "Server error", detail: String(err?.message || err) });
   }
 };
+
+// Hjälpfunktion för konsekventa JSON-svar
+function json(statusCode, obj) {
+  return {
+    statusCode,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(obj)
+  };
+}
