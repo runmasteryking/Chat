@@ -141,3 +141,16 @@ body>.intro, body>.chat-container{display:grid;justify-items:center}
 #input-area{display:block !important}
 #input-area .chat-inner{width:100% !important}
 #user-area,#userName,#loginBtn{white-space:nowrap !important}
+/* Avstånd mellan intro-text och chatt – responsivt */
+.intro {
+  padding-top: calc(clamp(72px, 14vh, 120px) + 12vh);
+  padding-bottom: clamp(2px, 1.5vh, 8px); /* tajtare på små skärmar, mer luft på stora */
+  text-align: center;
+}
+
+/* Extra justering för riktigt små mobiler */
+@media (max-width: 480px) {
+  .intro {
+    padding-bottom: 2px; /* minsta möjliga luft på mobil */
+  }
+}
