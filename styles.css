@@ -311,3 +311,49 @@ body > .chat-container {
 
 /* 5) Header-pill får inte radbrytas (undvik att den växer på konstiga sätt) */
 #user-area, #userName, #loginBtn{ white-space:nowrap !important; }
+/* ===== BULLETPROOF LAYOUT FOR ACTION ROW ===== */
+
+/* Gör actions-raden till två kolumner: vänster tar allt, höger är auto */
+.chat-actions{
+  display:grid !important;
+  grid-template-columns: 1fr auto !important;
+  align-items:center !important;
+  gap:8px !important;
+  padding:8px 8px !important;
+  border-top:1px solid rgba(0,0,0,0.05) !important;
+  margin-top:6px !important;
+}
+
+/* Vänster sida får krympa (ingen wrap), men hålla sig på en rad */
+.actions-left{
+  min-width:0 !important;
+  display:flex !important;
+  gap:8px !important;
+  flex-wrap:nowrap !important;
+}
+
+/* Höger sida är kompakt, fast bredd, alltid längst till höger */
+.actions-right{
+  display:flex !important;
+  gap:8px !important;
+  justify-self:end !important;  /* grid: placera längst till höger */
+  flex-wrap:nowrap !important;
+}
+
+/* Knappar ska inte krympa in till flera rader */
+.chip, .chip-icon, .chip-muted, .fab{
+  flex:0 0 auto !important;
+  white-space:nowrap !important;
+}
+
+/* Textarean: en rad, ellipsis – men visa hela texten om utrymme finns */
+#input-area textarea{
+  height:44px !important;
+  white-space:nowrap !important;
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+}
+#input-area textarea::placeholder{
+  white-space:nowrap !important;
+  text-overflow:ellipsis !important;
+}
