@@ -13,7 +13,7 @@
 </head>
 <body>
 
-  <!-- HEADER -->
+  <!-- HEADER (transparent, ligger ovanpå bakgrunden) -->
   <header>
     <div class="brand">
       <img src="logo.png" alt="Run Mastery logo" class="brand-logo" />
@@ -38,12 +38,19 @@
 
     <!-- Chat container (centrerad likt Lovable) -->
     <section class="chat-container" aria-label="Conversation">
-      <!-- Ta bort inline-display:none så den syns direkt. Om din JS ska styra visning, gör det där. -->
       <div id="chat-wrapper">
+        <!-- Meddelanden (behåll tomt initialt) -->
         <div id="messages" aria-live="polite" aria-atomic="false"></div>
 
+        <!-- Input-område -->
         <div id="input-area">
-          <label for="userInput" class="sr-only">Type your message</label>
+          <!-- Liten verktygsrad som i Lovable -->
+          <div class="input-actions" style="display:flex;align-items:center;gap:8px;margin-right:8px;">
+            <button class="option-button" type="button" id="newThreadBtn" title="New">+</button>
+            <button class="option-button" type="button" id="attachBtn" title="Attach">Attach</button>
+            <button class="option-button" type="button" id="visibilityBtn" title="Visibility">Public</button>
+          </div>
+
           <textarea
             id="userInput"
             placeholder="Type your message…"
@@ -52,6 +59,7 @@
             onkeydown="handleKey(event)"
             aria-label="Message input"
           ></textarea>
+
           <button id="sendBtn" type="button" aria-label="Send message">Send</button>
         </div>
       </div>
