@@ -2,12 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Run Mastery AI</title>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap"
-    rel="stylesheet"
-  >
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Run Mastery</title>
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
+
+  <!-- Styles -->
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -16,41 +17,49 @@
   <header>
     <div class="brand">
       <img src="logo.png" alt="Run Mastery logo" class="brand-logo" />
-      <div class="brand-title">Run Mastery AI</div>
+      <div class="brand-title">Run Mastery</div>
     </div>
+
     <div id="user-area">
-      <button id="loginBtn">Log in with Google</button>
-      <div id="userInfo" style="display: none;">
-        <button id="userName"></button>
+      <button id="loginBtn" type="button" aria-label="Log in with Google">Log in with Google</button>
+      <div id="userInfo" style="display:none;">
+        <button id="userName" type="button"></button>
       </div>
     </div>
   </header>
 
-  <main>
-    <!-- INTRO -->
-    <section class="intro" id="intro">
-      <h1>Your journey - Your pace</h1>
+  <!-- HERO + CHAT -->
+  <main role="main">
+    <!-- Hero copy -->
+    <section class="intro" id="intro" aria-labelledby="hero-title">
+      <h1 id="hero-title">Your journey. Your pace.</h1>
       <p>Helping you find joy, strength and progress in every run</p>
     </section>
 
-    <!-- CHAT WRAPPER -->
-    <div id="chat-wrapper" style="display: none;">
-      <div id="messages"></div>
-      <div id="input-area">
-        <textarea
-          id="userInput"
-          placeholder="Type your message…"
-          maxlength="1000"
-          onkeydown="handleKey(event)"
-        ></textarea>
-        <button id="sendBtn">Send</button>
+    <!-- Chat container (centrerad likt Lovable) -->
+    <section class="chat-container" aria-label="Conversation">
+      <!-- Ta bort inline-display:none så den syns direkt. Om din JS ska styra visning, gör det där. -->
+      <div id="chat-wrapper">
+        <div id="messages" aria-live="polite" aria-atomic="false"></div>
+
+        <div id="input-area">
+          <label for="userInput" class="sr-only">Type your message</label>
+          <textarea
+            id="userInput"
+            placeholder="Type your message…"
+            maxlength="1000"
+            rows="1"
+            onkeydown="handleKey(event)"
+            aria-label="Message input"
+          ></textarea>
+          <button id="sendBtn" type="button" aria-label="Send message">Send</button>
+        </div>
       </div>
-    </div>
+    </section>
   </main>
 
   <!-- SCRIPTS -->
   <script type="module" src="firebase-config.js"></script>
   <script type="module" src="script.js"></script>
-
 </body>
 </html>
