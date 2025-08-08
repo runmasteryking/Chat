@@ -243,3 +243,18 @@ window.addEventListener("DOMContentLoaded", () => {
     messages.scrollTop = messages.scrollHeight;
   }
 });
+// Auto-scroll till botten om användaren redan är där
+function scrollToBottomIfNeeded() {
+  const messagesEl = document.getElementById("messages");
+  const atBottom =
+    messagesEl.scrollHeight - messagesEl.scrollTop <= messagesEl.clientHeight + 10;
+
+  if (atBottom) {
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+}
+
+// Kör varje gång ett nytt meddelande läggs till
+const messagesEl = document.getElementById("messages");
+const observer = new MutationObserver(scrollToBottomIfNeeded);
+observer.observe(messagesEl, { childList: true });
