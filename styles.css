@@ -65,9 +65,9 @@ header{
 ──────────────────────────────────────────────────────────*/
 body>.intro, body>.chat-container{display:grid;justify-items:center}
 
-/* Flyttat ner textdelen 40px extra */
+/* Flyttat ner textdelen med +5vh extra */
 .intro{
-  padding-top:calc(clamp(72px,14vh,120px) + 40px);
+  padding-top:calc(clamp(72px,14vh,120px) + 5vh);
   padding-bottom:8px;
   text-align:center;
 }
@@ -78,10 +78,10 @@ body>.intro, body>.chat-container{display:grid;justify-items:center}
    Chat wrapper
 ──────────────────────────────────────────────────────────*/
 
-/* Flyttat ner chattfönstret 40px extra */
+/* Flyttat ner chattfönstret med 4vh extra */
 .chat-container{
   width:100%;
-  margin-top:46px; /* tidigare 6px */
+  margin-top:calc(6px + 4vh);
   padding:0 var(--space-4) var(--space-12);
 }
 
