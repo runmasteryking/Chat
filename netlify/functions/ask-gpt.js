@@ -1,20 +1,14 @@
 // netlify/functions/ask-gpt.js
-const fetch = require("node-fetch");
-const admin = require("firebase-admin");
+import fetch from "node-fetch";
 
-// Init Firebase Admin om inte redan gjort
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.applicationDefault()
-  });
-}
-const db = admin.firestore();
-
-exports.handler = async (event) => {
+export const handler = async (event) => {
   try {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      return { statusCode: 500, body: JSON.stringify({ error: "Missing API key" }) };
+      return {
+        statusCode: 500,
+        body: JSON.stringify({ error: "Server misconfiguration: missing API key" })
+      };
     }
 
     let body;
@@ -28,45 +22,38 @@ exports.handler = async (event) => {
       message = "",
       userProfile = {},
       systemSummary = "",
-      recentMessages = "",
-      uid // Vi skickar med uid från frontend
+      recentMessages = ""
     } = body;
 
     if (!message) {
-      return { statusCode: 400, body: JSON.stringify({ error: "Missing message" }) };
-    }
-    if (!uid) {
-      return { statusCode: 400, body: JSON.stringify({ error: "Missing UID" }) };
+      return { statusCode: 400, body: JSON.stringify({ error: "Missing user message" }) };
     }
 
-    // 🔹 Hämta sparad profil från Firestore
-    const userRef = db.collection("users").doc(uid);
-    const userSnap = await userRef.get();
-    let storedProfile = {};
-    if (userSnap.exists) {
-      storedProfile = userSnap.data()?.profile || {};
-    }
+    // Hitta saknade profilfält
+    const requiredFields = ["name", "gender", "birthYear", "level", "weeklySessions", "current5kTime"];
+    const missingFields = requiredFields.filter(field => !userProfile[field] || userProfile[field] === "");
 
-    // 🔹 Slå ihop sparad profil med den från frontend
-    const mergedProfile = { ...storedProfile, ...userProfile };
-
-    // 🔹 Skapa system prompt med sammanfattning + profil
+    // Systeminstruktion för AI
     const systemPrompt = `
-You are a friendly and knowledgeable AI running coach.
-Use the user's profile and chat history to give personalized, motivational responses.
-
-User profile:
-${JSON.stringify(mergedProfile)}
-
-Conversation summary:
-${systemSummary}
-
-Recent messages:
-${recentMessages}
+You are a friendly and engaging running coach AI for Run Mastery.
+You have access to the user's profile and must only ask for missing details from this profile once.
+If profileComplete is true, never ask for personal details again unless the user updates them.
+Use conversationSummary for context and recentMessages for continuity.
+When replying, confirm and restate user's answers naturally, then move on to next relevant question or training advice.
 `;
 
-    // 🔹 Kör GPT-anrop
-    const gptRes = await fetch("https://api.openai.com/v1/chat/completions", {
+    // Om profilen är komplett, lägg fokus på coaching
+    const conversationContext = `
+Profile: ${JSON.stringify(userProfile)}
+Conversation summary: ${systemSummary}
+Recent messages:
+${recentMessages}
+
+Missing fields: ${missingFields.join(", ") || "none"}
+`;
+
+    // Kör GPT-anrop
+    const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -76,36 +63,38 @@ ${recentMessages}
         model: "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: message }
-        ]
+          { role: "user", content: `${conversationContext}\nUser: ${message}` }
+        ],
+        temperature: 0.7
       })
     });
 
-    if (!gptRes.ok) {
-      const errorText = await gptRes.text();
-      throw new Error(`OpenAI API error ${gptRes.status}: ${errorText}`);
+    if (!openaiRes.ok) {
+      const errText = await openaiRes.text();
+      console.error("OpenAI API error:", openaiRes.status, errText);
+      return {
+        statusCode: openaiRes.status,
+        body: JSON.stringify({ error: "OpenAI API error", detail: errText })
+      };
     }
 
-    const gptData = await gptRes.json();
-    const reply = gptData.choices?.[0]?.message?.content?.trim() || "";
+    const data = await openaiRes.json();
+    const reply = data.choices?.[0]?.message?.content?.trim() || "";
 
-    // 🔹 Här kan vi även be GPT om uppdateringar till profilen
-    const profileUpdate = {}; // Placeholder, kan fyllas med AI-logik
-    // Exempel: om GPT tolkar ett nytt 5K-tidssvar
-
-    // 🔹 Spara tillbaka i Firestore
-    if (Object.keys(profileUpdate).length > 0) {
-      const updatedProfile = { ...mergedProfile, ...profileUpdate };
-      await userRef.set({ profile: updatedProfile, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+    // Kolla om svaret innehåller ny profilinfo att spara
+    const profileUpdate = {};
+    for (const field of requiredFields) {
+      if (!userProfile[field] && reply.toLowerCase().includes(field.toLowerCase())) {
+        profileUpdate[field] = reply; // enkel variant — kan förbättras
+      }
     }
 
     return {
       statusCode: 200,
       body: JSON.stringify({ reply, profileUpdate })
     };
-
   } catch (err) {
-    console.error(err);
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+    console.error("ask-gpt error:", err);
+    return { statusCode: 500, body: JSON.stringify({ error: "Server error", detail: err.message }) };
   }
 };
