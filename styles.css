@@ -94,7 +94,7 @@ body > .chat-container {
 }
 
 /* ─────────────────────────────────────────────────────────
-   Chat-wrapper – Lovable style
+   Chat-wrapper – Lovable style (tajtare, subtil skugga)
 ──────────────────────────────────────────────────────────*/
 .chat-container {
   width: 100%;
@@ -108,7 +108,7 @@ body > .chat-container {
   background: var(--clr-white);
   border: 1px solid rgba(17,17,17,.08);
   border-radius: 28px;
-  box-shadow: 0 10px 28px rgba(0,0,0,0.08);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06); /* svagare skugga */
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -124,7 +124,7 @@ body > .chat-container {
   background: var(--clr-white);
 }
 
-/* Input-området som i Lovable */
+/* Input-området som i Lovable (tajtare) */
 #input-area {
   border-top: 0;
   background: var(--clr-white);
@@ -132,7 +132,7 @@ body > .chat-container {
 }
 
 .chat-inner {
-  padding: 14px 16px;
+  padding: 8px 16px 0 16px; /* mindre toppmarginal */
 }
 
 #input-area textarea {
@@ -140,19 +140,25 @@ body > .chat-container {
   border: 0;
   outline: 0;
   background: transparent;
-  font-size: 18px;
+  font-size: 18px;            /* större text som Lovable */
   line-height: 1.5;
-  padding: 18px 12px 0 12px;
+  color: var(--clr-text);
+  padding: 8px 12px;          /* lägre padding ger mindre korthöjd */
   border-radius: 0;
   resize: none;
 }
+#input-area textarea::placeholder {
+  color: rgba(0,0,0,0.40);     /* mjuk placeholder */
+}
 
-/* Action-raden */
+/* Action-raden (nära text, med tunn divider) */
 .chat-actions {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 8px 6px 8px;
+  padding: 8px 8px;            /* kompaktare knapprad */
+  border-top: 1px solid rgba(0,0,0,0.05); /* subtil divider */
+  margin-top: 6px;
 }
 
 .actions-left,
@@ -191,9 +197,10 @@ body > .chat-container {
   font-weight: 600;
 }
 
+/* Send-knapp – något mindre och tydligare hover */
 .fab {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 9999px;
   border: 0;
   background: #111;
@@ -201,8 +208,9 @@ body > .chat-container {
   display: grid;
   place-items: center;
   cursor: pointer;
+  transition: background .15s ease, transform .05s ease;
 }
-.fab:hover { filter: brightness(.96); }
+.fab:hover { background: #000; }
 .fab:active { transform: translateY(1px); }
 
 /* Bubblor */
@@ -225,6 +233,6 @@ body > .chat-container {
 @media (max-width: 640px) {
   .brand-logo { width: 36px; height: 36px; }
   #chat-wrapper { width: min(100%, 94vw); border-radius: 24px; }
-  .fab { width: 36px; height: 36px; }
+  .fab { width: 34px; height: 34px; }
   .chip { height: 34px; font-size: 13px; }
 }
