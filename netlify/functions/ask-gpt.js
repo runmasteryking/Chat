@@ -1,45 +1,52 @@
 // netlify/functions/ask-gpt.js
 const fetch = require("node-fetch");
+const admin = require("firebase-admin");
+
+// Initiera Firebase Admin en gång
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.applicationDefault()
+  });
+}
+const db = admin.firestore();
 
 exports.handler = async (event) => {
   try {
-    // 1) Hämta och validera API-nyckel
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      return {
-        statusCode: 500,
-        body: JSON.stringify({ error: "Server misconfiguration: missing API key" })
-      };
+      return { statusCode: 500, body: JSON.stringify({ error: "Missing API key" }) };
     }
 
-    // 2) Parsning av indata
+    // 1) Läs indata
     let body;
     try {
       body = JSON.parse(event.body || "{}");
     } catch {
       return { statusCode: 400, body: JSON.stringify({ error: "Invalid JSON" }) };
     }
-    const {
-      message = "",
-      userProfile = {},
-      systemSummary = "",
-      recentMessages = ""
-    } = body;
-    if (!message) {
-      return { statusCode: 400, body: JSON.stringify({ error: "Missing user message" }) };
+    const { message = "", uid = "", systemSummary = "", recentMessages = "" } = body;
+    if (!message || !uid) {
+      return { statusCode: 400, body: JSON.stringify({ error: "Missing message or uid" }) };
     }
 
-    // 3) Grundläggande profil‐fält
-    const name       = userProfile.name?.trim() || "Runner";
-    const language   = (userProfile.language || "english").toLowerCase();
-    const level      = (userProfile.level    || "intermediate").toLowerCase();
-    const agent      = (userProfile.agent    || "coach").toLowerCase();
+    // 2) Hämta profil från Firestore
+    const userRef = db.collection("users").doc(uid);
+    const userSnap = await userRef.get();
+    let userProfile = {};
+    if (userSnap.exists) {
+      userProfile = userSnap.data();
+    }
 
-    // 4) Kontroll av saknade profilfält
-    const requiredFields = ["gender","birthYear","current5kTime","weeklySessions"];
+    // 3) Grunddata för prompt
+    const name     = userProfile.name?.trim() || "Runner";
+    const language = (userProfile.language || "english").toLowerCase();
+    const level    = (userProfile.level || "intermediate").toLowerCase();
+    const agent    = (userProfile.agent || "coach").toLowerCase();
+
+    const requiredFields = ["gender", "birthYear", "current5kTime", "weeklySessions"];
     const missingFields  = requiredFields.filter(f => !userProfile[f]);
 
-    // 5) Bygg upp system‐prompten stegvis
+    // 4) System-prompt
     let systemPrompt = `
 You are Run Mastery AI — a world-class running coach.
 
@@ -55,6 +62,7 @@ ${recentMessages}
 - NEVER say you're an AI.
 - NEVER repeat what the user already said.
 - ALWAYS follow up with a relevant question.
+- Remember what the user has told you before and be consistent.
 
 👂 If the user gives a short answer (e.g. "20"), confirm it:
   "So your 5K time is 20 minutes? Awesome. What's next?"
@@ -62,13 +70,7 @@ ${recentMessages}
 ✅ Greet by name only in your first reply.
 
 User profile:
-- Name: ${name}
-- Language: ${language}
-- Level: ${level}
-- Gender: ${userProfile.gender || "unknown"}
-- Birth year: ${userProfile.birthYear || "unknown"}
-- 5K time: ${userProfile.current5kTime || "unknown"}
-- Weekly sessions: ${userProfile.weeklySessions || "unknown"}
+${JSON.stringify(userProfile, null, 2)}
 `.trim();
 
     if (missingFields.length) {
@@ -80,7 +82,7 @@ ${missingFields.map(f => `- ${f}`).join("\n")}
 `;
     }
 
-    // 6) Roll‐specifika instruktioner
+    // Roll-specifik prompt
     const roleMap = {
       "race-planner":    "You're their Race Planner: focus on pacing, tapering, race strategy.",
       "strategist":       "You're their Mental Strategist: guide mindset, pacing and tactics.",
@@ -90,7 +92,7 @@ ${missingFields.map(f => `- ${f}`).join("\n")}
     const rolePrompt = roleMap[agent] || "You're their Training Coach: build consistent, personalized training.";
     systemPrompt += `\n${rolePrompt}`;
 
-    // 7) Språkinstruktion
+    // Språkinstruktion
     let langPrompt;
     if (language === "swedish") {
       langPrompt = "Svara bara på svenska. Korta, tydliga och coachande meningar.";
@@ -101,16 +103,16 @@ ${missingFields.map(f => `- ${f}`).join("\n")}
     }
     systemPrompt += `\n${langPrompt}`;
 
-    // 8) Instruktion för profil‐uppdateringar
+    // Profiluppdateringsinstruktion
     systemPrompt += `
 
 📦 If you learn new info, return it only in this JSON block:
 [PROFILE UPDATE]
 { /* your JSON here */ }
 [/PROFILE UPDATE]
-`.trim();
+`;
 
-    // 9) Anropa OpenAI GPT-4 med timeout
+    // 5) Anropa OpenAI
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000);
 
@@ -118,14 +120,14 @@ ${missingFields.map(f => `- ${f}`).join("\n")}
       method: "POST",
       signal: controller.signal,
       headers: {
-        "Content-Type":  "application/json",
-        Authorization:   `Bearer ${apiKey}`
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        model:       "gpt-4",
+        model: "gpt-4o-mini",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user",   content: message }
+          { role: "user", content: message }
         ],
         temperature: 0.7
       })
@@ -138,11 +140,10 @@ ${missingFields.map(f => `- ${f}`).join("\n")}
       return { statusCode: 502, body: JSON.stringify({ error: "Upstream API error" }) };
     }
 
-    // 10) Hantera svaret
     const { choices } = await openaiRes.json();
-    const rawReply     = (choices?.[0]?.message?.content || "").trim();
+    const rawReply = (choices?.[0]?.message?.content || "").trim();
 
-    // Extrahera [PROFILE UPDATE]
+    // 6) Hantera profiluppdatering
     const profileUpdate = {};
     const match = rawReply.match(/\[PROFILE UPDATE\]([\s\S]*?)\[\/PROFILE UPDATE\]/);
     if (match) {
@@ -153,7 +154,12 @@ ${missingFields.map(f => `- ${f}`).join("\n")}
       }
     }
 
-    // Rensa ut uppdateringsblocket
+    // Spara uppdaterad profil
+    if (Object.keys(profileUpdate).length > 0) {
+      await userRef.set({ ...userProfile, ...profileUpdate }, { merge: true });
+    }
+
+    // 7) Skicka svar till klienten
     const cleanedReply = rawReply.replace(/\[PROFILE UPDATE\][\s\S]*?\[\/PROFILE UPDATE\]/g, "").trim();
 
     return {
