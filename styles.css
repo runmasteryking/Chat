@@ -39,6 +39,9 @@ html,body{
   line-height:var(--lh);
   color:var(--clr-text);
   background:radial-gradient(1200px 600px at 50% 10%,#fffef4 0%,var(--clr-bg-end) 40%,var(--clr-bg-start) 100%);
+
+  /* Prevent browser scroll-anchoring jump when new messages mount */
+  overflow-anchor: none;
 }
 
 /* ─────────────────────────────────────────────────────────
@@ -86,30 +89,36 @@ body>.intro, body>.chat-container{display:grid;justify-items:center}
   box-shadow:0 2px 8px rgba(0,0,0,0.06);
   display:flex; flex-direction:column; overflow:hidden;
 }
+
+/* Meddelandelistan – stabil höjd så kortet inte hoppar */
 #messages{
   display:flex;
   flex-direction:column;
   gap:12px;
   padding:0;
-  max-height:340px;
+  min-height:160px;   /* keeps the card from shrinking to 0 initially */
+  max-height:340px;   /* previous cap */
   overflow-y:auto;
   background:var(--clr-white);
-  min-height:160px; /* Fix för att hålla höjden stabil */
 }
 
 /* Input-området */
 #input-area{border-top:0; background:var(--clr-white); padding:0}
 .chat-inner{padding:8px 16px 0 16px}
 
-/* Textarea – single-line baseline (JS expanderar vid input) */
+/* Textarea – fast höjd, ingen JS-autoresize, intern scroll vid långa inputs */
 #input-area textarea{
   width:100%; display:block;
   border:0; outline:0; background:transparent;
   font-size:18px; line-height:1.5; color:var(--clr-text);
   padding:8px 12px; border-radius:0; resize:none;
-  height:44px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
+
+  height:44px;             /* fixed line height */
+  overflow:auto;           /* allow internal scroll for long input */
+  white-space:normal;      /* wrap inside the textarea */
+  text-overflow:clip;      /* no ellipsis needed */
 }
-#input-area textarea::placeholder{color:rgba(0,0,0,0.40);white-space:nowrap;text-overflow:ellipsis}
+#input-area textarea::placeholder{color:rgba(0,0,0,0.40)}
 
 /* Actions: två kolumner (vänster 1fr, höger auto) */
 .chat-actions{
@@ -150,7 +159,5 @@ body>.intro, body>.chat-container{display:grid;justify-items:center}
 
 /* Extra justering för riktigt små mobiler */
 @media (max-width: 480px) {
-  .intro {
-    padding-bottom: 2px;
-  }
+  .intro { padding-bottom: 2px; }
 }
