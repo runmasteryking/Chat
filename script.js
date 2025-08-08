@@ -145,7 +145,7 @@ window.addEventListener("DOMContentLoaded", () => {
       const isFirst = !firstMessageSent;
       if (isFirst) {
         // Dölj hero-kopian EN gång när första riktiga meddelandet går iväg
-        intro.style.display = "none";
+        if (intro) intro.classList.add("intro-hidden"); // behåller höjd, ingen hoppeffekt
         firstMessageSent = true;
       }
 
