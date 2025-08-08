@@ -12,7 +12,7 @@
 
   --radius-sm: 8px;
   --radius-md: 16px;
-  --radius-lg: 28px;         /* lite tajtare än 32 för Lovable-look */
+  --radius-lg: 28px;         
   --radius-pill: 9999px;
 
   --space-2: 8px;
@@ -45,22 +45,20 @@ html, body {
    Header – helt transparent, överlagrad
 ──────────────────────────────────────────────────────────*/
 header {
-  position: absolute;               /* <— över bakgrunden */
+  position: absolute;
   inset: 0 0 auto 0;
   z-index: 100;
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: var(--space-4) var(--space-8);
-  background: transparent;          /* <— ingen glas/blur */
+  background: transparent;
 }
 
-/* Brand */
 .brand { display: flex; align-items: center; gap: var(--space-3); white-space: nowrap; }
 .brand-logo { width: 40px; height: 40px; border-radius: var(--radius-pill); background: var(--clr-primary); object-fit: cover; }
 .brand-title { font-weight: 800; letter-spacing: -0.02em; font-size: clamp(18px, 2.2vw, 24px); }
 
-/* User pill */
 #user-area { display: flex; align-items: center; gap: var(--space-4); }
 #loginBtn, #userName {
   background: #111; color: #fff; border: 0; cursor: pointer;
@@ -69,7 +67,7 @@ header {
 #loginBtn:hover, #userName:hover { opacity: .9; }
 
 /* ─────────────────────────────────────────────────────────
-   Hero layout – tightare och högre upp (Lovable-känsla)
+   Hero layout
 ──────────────────────────────────────────────────────────*/
 body > .intro,
 body > .chat-container {
@@ -77,59 +75,135 @@ body > .chat-container {
   justify-items: center;
 }
 
-/* Tryck upp rubrik mot mitten och minska luft till chatten */
 .intro {
-  /* placera runt 40–45vh så chatten hamnar nära rubriken */
   padding-top: clamp(72px, 14vh, 120px);
-  padding-bottom: 8px;               /* <— mindre luft */
+  padding-bottom: 8px;
   text-align: center;
 }
 
-/* Stor, kompakt rubrik */
 .intro h1 {
   font-weight: 800;
   letter-spacing: -0.02em;
   font-size: clamp(36px, 6vw, 64px);
-  margin-bottom: 8px;                /* <— tajtare */
+  margin-bottom: 8px;
 }
 
-/* Mjukare underrubrik */
 .intro p {
   color: var(--clr-text-muted);
   font-size: clamp(16px, 1.6vw, 20px);
 }
 
 /* ─────────────────────────────────────────────────────────
-   Chat-wrapper – bredare, rundare, mer “card”
+   Chat-wrapper – Lovable style
 ──────────────────────────────────────────────────────────*/
 .chat-container {
   width: 100%;
-  margin-top: 6px;                   /* <— nästan ingen luft från rubrik */
+  margin-top: 6px;
   padding: 0 var(--space-4) var(--space-12);
 }
 
 #chat-wrapper {
-  width: min(980px, 92vw);           /* <— bredare */
+  width: min(980px, 92vw);
   margin: 0 auto;
   background: var(--clr-white);
   border: 1px solid rgba(17,17,17,.08);
-  border-radius: var(--radius-lg);   /* 28px */
+  border-radius: 28px;
   box-shadow: 0 10px 28px rgba(0,0,0,0.08);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-/* Meddelanden (kan döljas initialt om du vill) */
 #messages {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
-  padding: var(--space-4) var(--space-4) 0;
+  gap: 12px;
+  padding: 0;
   max-height: 340px;
   overflow-y: auto;
   background: var(--clr-white);
 }
+
+/* Input-området som i Lovable */
+#input-area {
+  border-top: 0;
+  background: var(--clr-white);
+  padding: 0;
+}
+
+.chat-inner {
+  padding: 14px 16px;
+}
+
+#input-area textarea {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  font-size: 18px;
+  line-height: 1.5;
+  padding: 18px 12px 0 12px;
+  border-radius: 0;
+  resize: none;
+}
+
+/* Action-raden */
+.chat-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 8px 6px 8px;
+}
+
+.actions-left,
+.actions-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 9999px;
+  border: 1px solid rgba(0,0,0,.12);
+  background: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  color: #111;
+  cursor: pointer;
+}
+.chip:hover { background: #fafafa; }
+
+.chip-icon {
+  width: 36px;
+  padding: 0;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.chip-muted {
+  border: 0;
+  background: rgba(0,0,0,.06);
+  color: #333;
+  font-weight: 600;
+}
+
+.fab {
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  border: 0;
+  background: #111;
+  color: #fff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.fab:hover { filter: brightness(.96); }
+.fab:active { transform: translateY(1px); }
 
 /* Bubblor */
 .message {
@@ -142,67 +216,15 @@ body > .chat-container {
   animation: fadeIn .3s ease forwards;
 }
 @keyframes fadeIn { to { opacity: 1; transform: translateY(0); } }
-
 .message.user { align-self: flex-end; background: #fff; border: 1px solid rgba(0,0,0,.06); }
 .message.bot  { align-self: flex-start; background: #FFF6BF; }
-
-/* Input-området – pill, stort och centralt fokus */
-#input-area {
-  display: flex; align-items: center; gap: var(--space-3);
-  padding: var(--space-4);
-  border-top: 1px solid rgba(17,17,17,.06);
-  background: var(--clr-white);
-}
-
-textarea {
-  flex: 1;
-  font-size: 16px;
-  padding: 16px 18px;                /* lite högre */
-  border: 1px solid rgba(17,17,17,.12);
-  border-radius: var(--radius-pill);  /* riktigt pill */
-  resize: none; overflow: hidden; line-height: 1.5;
-  transition: box-shadow .15s, border-color .15s;
-  background: #fff;
-}
-textarea:focus {
-  outline: none;
-  border-color: rgba(17,17,17,.18);
-  box-shadow: 0 0 0 4px rgba(255, 211, 78, .25);
-}
-
-/* Skicka-knapp – rund och kompakt */
-#sendBtn {
-  height: 52px;
-  padding: 0 22px;
-  border: 0;
-  border-radius: var(--radius-pill);
-  background: var(--clr-primary);
-  color: #111;
-  font-weight: 700;
-  cursor: pointer;
-  transition: transform .05s ease, filter .15s ease;
-}
-#sendBtn:hover { filter: brightness(0.98); }
-#sendBtn:active { transform: translateY(1px); }
-
-/* Option-knappar */
-.option-button {
-  background: #fff;
-  color: #111;
-  border: 1px solid rgba(17,17,17,.12);
-  border-radius: var(--radius-pill);
-  padding: 8px 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background .15s, transform .05s, border-color .15s;
-}
-.option-button:hover { background: #fafafa; border-color: rgba(17,17,17,.2); }
 
 /* ─────────────────────────────────────────────────────────
    Responsive
 ──────────────────────────────────────────────────────────*/
 @media (max-width: 640px) {
   .brand-logo { width: 36px; height: 36px; }
-  #chat-wrapper { width: min(100%, 94vw); border-radius: 22px; }
-  #sendBtn { height: 48px; padding: 0 18px; }
+  #chat-wrapper { width: min(100%, 94vw); border-radius: 24px; }
+  .fab { width: 36px; height: 36px; }
+  .chip { height: 34px; font-size: 13px; }
 }
