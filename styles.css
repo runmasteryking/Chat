@@ -22,7 +22,7 @@
   --space-8: 32px;
   --space-12: 48px;
 
-  --font-sans: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  --font-sans: 'Manrope', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   --lh: 1.6;
 }
 
@@ -108,7 +108,7 @@ body > .chat-container {
   background: var(--clr-white);
   border: 1px solid rgba(17,17,17,.08);
   border-radius: 28px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06); /* svagare skugga */
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -124,7 +124,7 @@ body > .chat-container {
   background: var(--clr-white);
 }
 
-/* Input-området som i Lovable (tajtare) */
+/* Input-området */
 #input-area {
   border-top: 0;
   background: var(--clr-white);
@@ -132,7 +132,7 @@ body > .chat-container {
 }
 
 .chat-inner {
-  padding: 8px 16px 0 16px; /* mindre toppmarginal */
+  padding: 8px 16px 0 16px;
 }
 
 #input-area textarea {
@@ -140,24 +140,24 @@ body > .chat-container {
   border: 0;
   outline: 0;
   background: transparent;
-  font-size: 18px;            /* större text som Lovable */
+  font-size: 18px;
   line-height: 1.5;
   color: var(--clr-text);
-  padding: 8px 12px;          /* lägre padding ger mindre korthöjd */
+  padding: 8px 12px;
   border-radius: 0;
   resize: none;
 }
 #input-area textarea::placeholder {
-  color: rgba(0,0,0,0.40);     /* mjuk placeholder */
+  color: rgba(0,0,0,0.40);
 }
 
-/* Action-raden (nära text, med tunn divider) */
+/* Action-raden */
 .chat-actions {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 8px;            /* kompaktare knapprad */
-  border-top: 1px solid rgba(0,0,0,0.05); /* subtil divider */
+  padding: 8px 8px;
+  border-top: 1px solid rgba(0,0,0,0.05);
   margin-top: 6px;
 }
 
@@ -197,7 +197,7 @@ body > .chat-container {
   font-weight: 600;
 }
 
-/* Send-knapp – något mindre och tydligare hover */
+/* Send-knapp */
 .fab {
   width: 36px;
   height: 36px;
