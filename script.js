@@ -18,6 +18,7 @@ import {
 } from "./firebase-config.js";
 
 window.addEventListener("DOMContentLoaded", () => {
+  // ── DOM
   const loginBtn    = document.getElementById("loginBtn");
   const chatWrapper = document.getElementById("chat-wrapper");
   const intro       = document.getElementById("intro");
@@ -28,6 +29,7 @@ window.addEventListener("DOMContentLoaded", () => {
   const userInfo    = document.getElementById("userInfo");
   const userName    = document.getElementById("userName");
 
+  // ── State
   let currentUser = null;
   let firstMessageSent = false;
   let isSending = false;
@@ -53,6 +55,12 @@ window.addEventListener("DOMContentLoaded", () => {
     { key:"raceDate",       question:"When is the race?" },
     { key:"raceDistance",   question:"What distance is the race?" }
   ];
+
+  function checkProfileCompletion() {
+    const requiredKeys = ["name", "gender", "birthYear", "level", "weeklySessions", "current5kTime"];
+    const hasAll = requiredKeys.every(key => userProfileState[key] !== null && userProfileState[key] !== "");
+    userProfileState.profileComplete = hasAll;
+  }
 
   // ── Auth
   loginBtn.addEventListener("click", async () => {
@@ -82,6 +90,7 @@ window.addEventListener("DOMContentLoaded", () => {
     if (snap.exists() && snap.data().profile) {
       Object.assign(userProfileState, snap.data().profile);
     }
+    checkProfileCompletion();
     await setDoc(ref, { lastLogin: serverTimestamp(), profile: userProfileState }, { merge: true });
   }
 
@@ -104,10 +113,22 @@ window.addEventListener("DOMContentLoaded", () => {
       sendMessage();
     }
   });
-  sendBtn.addEventListener("click", sendMessage);
+  window.handleKey = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+  inputArea.addEventListener("click", e => { if (e.target !== input) input.focus(); });
+  chatWrapper.addEventListener("click", e => {
+    const isClickable = e.target.closest(".fab, .chip, .message");
+    if (!isClickable) input.focus();
+  });
 
   const mo = new MutationObserver(() => autoScrollIfNeeded(true));
   mo.observe(messages, { childList: true });
+
+  sendBtn.addEventListener("click", sendMessage);
 
   async function sendMessage() {
     const now = Date.now();
@@ -130,13 +151,14 @@ window.addEventListener("DOMContentLoaded", () => {
       summarize("user", text).catch(e => console.warn("summarize user err:", e));
       input.value = "";
 
-      // Kolla om profil saknar något innan AI-svar
-      const nextMissing = profileQuestions.find(q => !userProfileState[q.key]);
-      if (nextMissing) {
-        appendBot(nextMissing.question);
-        await persist("bot", nextMissing.question);
-        summarize("bot", nextMissing.question).catch(e => console.warn("summarize bot err:", e));
-        return;
+      if (!userProfileState.profileComplete) {
+        const nextQ = profileQuestions.find(q => !userProfileState[q.key]);
+        if (nextQ) {
+          appendBot(nextQ.question);
+          await persist("bot", nextQ.question);
+          summarize("bot", nextQ.question).catch(e => console.warn("summarize bot err:", e));
+          return;
+        }
       }
 
       const thinking = createMessage("bot", "…", "thinking");
@@ -148,6 +170,7 @@ window.addEventListener("DOMContentLoaded", () => {
       appendBot(reply);
       await persist("bot", reply);
       summarize("bot", reply).catch(e => console.warn("summarize bot err:", e));
+
     } catch (err) {
       console.error(err);
       appendBot(`⚠️ ${err.message || "Something went wrong."}`);
@@ -174,7 +197,6 @@ window.addEventListener("DOMContentLoaded", () => {
       method: "POST",
       headers: {"Content-Type":"application/json"},
       body: JSON.stringify({
-        uid: currentUser.uid,
         prompt: `Existing summary:\n${existing}\n\n${sender}: ${text}\n\nUpdate summary (<=200 words):`
       })
     });
@@ -187,7 +209,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
     const { summary } = await res.json();
     userProfileState.conversationSummary = summary;
-    await setDoc(uref, { profile: { ...userProfileState, conversationSummary: summary } }, { merge: true });
+    await setDoc(uref, { profile: { conversationSummary: summary } }, { merge: true });
   }
 
   // ── AI
@@ -205,7 +227,6 @@ window.addEventListener("DOMContentLoaded", () => {
       method: "POST",
       headers: {"Content-Type":"application/json"},
       body: JSON.stringify({
-        uid: currentUser.uid,
         systemSummary:  summary,
         recentMessages: recent,
         message:        userText,
@@ -222,6 +243,7 @@ window.addEventListener("DOMContentLoaded", () => {
     const data = await res.json();
     if (data.profileUpdate && Object.keys(data.profileUpdate).length) {
       Object.assign(userProfileState, data.profileUpdate);
+      checkProfileCompletion();
       await setDoc(uref, { profile: userProfileState, updatedAt: serverTimestamp() }, { merge: true });
     }
     return data.reply || "";
@@ -242,6 +264,7 @@ window.addEventListener("DOMContentLoaded", () => {
     messages.appendChild(createMessage("bot", text));
     autoScrollIfNeeded(true);
   }
+
   function autoScrollIfNeeded(smooth = false){
     const atBottom = messages.scrollHeight - messages.scrollTop <= messages.clientHeight + 10;
     if (atBottom) {
