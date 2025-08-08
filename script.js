@@ -32,6 +32,7 @@ window.addEventListener("DOMContentLoaded", () => {
   // ── State ─────────────────────────────────────────────────────────────────
   let currentUser = null;
   let firstMessageSent = false;
+  let isSending = false; // prevents double sends
 
   const userProfileState = {
     name: null, language: null, gender: null, birthYear: null,
@@ -54,26 +55,6 @@ window.addEventListener("DOMContentLoaded", () => {
     { key:"raceDistance",   question:"What distance is the race?" }
   ];
 
-  // ── Controlled auto-resize textarea ───────────────────────────────────────
-  const BASE_H = 44;  // single-line baseline (match CSS)
-  const MAX_H  = 160; // cap growth
-
-  function updateTextareaLayout() {
-    const hasText = input.value.trim().length > 0;
-
-    if (!hasText) {
-      input.style.whiteSpace = "nowrap";
-      input.style.height = BASE_H + "px";
-    } else {
-      input.style.whiteSpace = "normal";
-      input.style.height = "auto";
-      input.style.height = Math.min(input.scrollHeight, MAX_H) + "px";
-    }
-  }
-
-  input.addEventListener("input", updateTextareaLayout);
-  input.addEventListener("focus", () => setTimeout(updateTextareaLayout, 0));
-
   // ── Authentication ────────────────────────────────────────────────────────
   loginBtn.addEventListener("click", async () => {
     try {
@@ -86,9 +67,7 @@ window.addEventListener("DOMContentLoaded", () => {
   });
 
   onAuthStateChanged(auth, async user => {
-    if (user) {
-      await handleUserLoggedIn(user);
-    }
+    if (user) await handleUserLoggedIn(user);
   });
 
   async function handleUserLoggedIn(user) {
@@ -119,12 +98,13 @@ window.addEventListener("DOMContentLoaded", () => {
   function showChatUI() {
     chatWrapper.style.display = "flex";
     messages.style.display    = "flex";
-    inputArea.style.display   = "block";  // IMPORTANT: not flex
-    updateTextareaLayout();
+    inputArea.style.display   = "block";  // keep layout stable
   }
 
   // ── Chat flow ─────────────────────────────────────────────────────────────
   sendBtn.addEventListener("click", sendMessage);
+
+  // SINGLE keydown handler (no inline onkeydown in HTML)
   input.addEventListener("keydown", e => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -132,50 +112,57 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // Optional: don't scroll page when focusing the composer
+  input.addEventListener("focus", () => {
+    // Do nothing that triggers scroll; keep page stable
+  });
+
   async function sendMessage() {
+    if (isSending) return; // guard against double triggers
+
     const text = input.value.trim();
     if (!text) return;
-
-    const isFirst = !firstMessageSent;
-
-    // Stäng hero när första meddelandet skickas
-    if (isFirst) {
-      intro.style.display = "none";
-      firstMessageSent = true;
-    }
-
-    // 1) Visa ALLTID användarens meddelande först
-    appendUser(text);
-    await persist("user", text);
-    await summarize("user", text);
-    input.value = "";
-    updateTextareaLayout();
-
-    // 2) Onboarding: fråga första profilfrågan EFTER första user-meddelandet (och bara en gång)
-    const needsOnboarding = !userProfileState.profileComplete && isFirst;
-    if (needsOnboarding) {
-      const q = profileQuestions[0].question;
-      appendBot(q);
-      await persist("bot", q);
-      await summarize("bot", q);
-      return; // välj att inte ringa AI direkt – vi vill ha svar på frågan först
-    }
-
-    // 3) Normal AI-flow
-    const thinking = createMessage("bot", "…", "thinking");
-    messages.appendChild(thinking);
-    autoScroll();
+    isSending = true;
 
     try {
+      const isFirst = !firstMessageSent;
+
+      if (isFirst) {
+        intro.style.display = "none";
+        firstMessageSent = true;
+      }
+
+      // Always append user's message first
+      appendUser(text);
+      await persist("user", text);
+      await summarize("user", text);
+      input.value = "";
+
+      // Onboarding: ask first profile question AFTER user's first message (once)
+      const needsOnboarding = !userProfileState.profileComplete && isFirst;
+      if (needsOnboarding) {
+        const q = profileQuestions[0].question;
+        appendBot(q);
+        await persist("bot", q);
+        await summarize("bot", q);
+        return;
+      }
+
+      // Normal AI flow
+      const thinking = createMessage("bot", "…", "thinking");
+      messages.appendChild(thinking);
+      autoScroll();
+
       const reply = await generateBotReply(text);
       thinking.remove();
       appendBot(reply);
       await persist("bot", reply);
       await summarize("bot", reply);
     } catch (err) {
-      thinking.remove();
-      appendBot("⚠️ Something went wrong.");
       console.error(err);
+      appendBot("⚠️ Something went wrong.");
+    } finally {
+      isSending = false;
     }
   }
 
@@ -255,12 +242,4 @@ window.addEventListener("DOMContentLoaded", () => {
   function autoScroll(){
     messages.scrollTop = messages.scrollHeight;
   }
-
-  // Expose for inline onkeydown
-  window.handleKey = e => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  };
 });
