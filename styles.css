@@ -1,29 +1,29 @@
 /* ─────────────────────────────────────────────────────────
    Tokens
 ──────────────────────────────────────────────────────────*/
-:root {
-  --clr-primary: #FFD34E;
-  --clr-primary-alt: #FFF176;
-  --clr-bg-start: #FFE36B;
-  --clr-bg-end: #fff9e6;
-  --clr-text: #111;
-  --clr-text-muted: #6B7280;
-  --clr-white: #fff;
+:root{
+  --clr-primary:#FFD34E;
+  --clr-primary-alt:#FFF176;
+  --clr-bg-start:#FFE36B;
+  --clr-bg-end:#fff9e6;
+  --clr-text:#111;
+  --clr-text-muted:#6B7280;
+  --clr-white:#fff;
 
-  --radius-sm: 8px;
-  --radius-md: 16px;
-  --radius-lg: 28px;         
-  --radius-pill: 9999px;
+  --radius-sm:8px;
+  --radius-md:16px;
+  --radius-lg:28px;
+  --radius-pill:9999px;
 
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-6: 24px;
-  --space-8: 32px;
-  --space-12: 48px;
+  --space-2:8px;
+  --space-3:12px;
+  --space-4:16px;
+  --space-6:24px;
+  --space-8:32px;
+  --space-12:48px;
 
-  --font-sans: 'Manrope', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  --lh: 1.6;
+  --font-sans:'Manrope',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  --lh:1.6;
 }
 
 /* ─────────────────────────────────────────────────────────
@@ -31,332 +31,105 @@
 ──────────────────────────────────────────────────────────*/
 *,
 *::before,
-*::after { box-sizing: border-box; margin: 0; padding: 0; }
+*::after{box-sizing:border-box;margin:0;padding:0}
 
-html, body {
-  height: 100%;
-  font-family: var(--font-sans);
-  line-height: var(--lh);
-  color: var(--clr-text);
-  background: radial-gradient(1200px 600px at 50% 10%, #fffef4 0%, var(--clr-bg-end) 40%, var(--clr-bg-start) 100%);
+html,body{
+  height:100%;
+  font-family:var(--font-sans);
+  line-height:var(--lh);
+  color:var(--clr-text);
+  background:radial-gradient(1200px 600px at 50% 10%,#fffef4 0%,var(--clr-bg-end) 40%,var(--clr-bg-start) 100%);
 }
 
 /* ─────────────────────────────────────────────────────────
-   Header – helt transparent, överlagrad
+   Header – transparent
 ──────────────────────────────────────────────────────────*/
-header {
-  position: absolute;
-  inset: 0 0 auto 0;
-  z-index: 100;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--space-4) var(--space-8);
-  background: transparent;
+header{
+  position:absolute; inset:0 0 auto 0; z-index:100;
+  display:flex; justify-content:space-between; align-items:center;
+  padding:var(--space-4) var(--space-8); background:transparent;
 }
+.brand{display:flex;align-items:center;gap:var(--space-3);white-space:nowrap}
+.brand-logo{width:40px;height:40px;border-radius:var(--radius-pill);background:var(--clr-primary);object-fit:cover}
+.brand-title{font-weight:800;letter-spacing:-0.02em;font-size:clamp(18px,2.2vw,24px)}
 
-.brand { display: flex; align-items: center; gap: var(--space-3); white-space: nowrap; }
-.brand-logo { width: 40px; height: 40px; border-radius: var(--radius-pill); background: var(--clr-primary); object-fit: cover; }
-.brand-title { font-weight: 800; letter-spacing: -0.02em; font-size: clamp(18px, 2.2vw, 24px); }
-
-#user-area { display: flex; align-items: center; gap: var(--space-4); }
-#loginBtn, #userName {
-  background: #111; color: #fff; border: 0; cursor: pointer;
-  padding: 8px 14px; border-radius: var(--radius-pill); font-weight: 600;
-  white-space: nowrap;
+#user-area{display:flex;align-items:center;gap:var(--space-4)}
+#loginBtn,#userName{
+  background:#111;color:#fff;border:0;cursor:pointer;
+  padding:8px 14px;border-radius:var(--radius-pill);font-weight:600;white-space:nowrap;
 }
-#loginBtn:hover, #userName:hover { opacity: .9; }
+#loginBtn:hover,#userName:hover{opacity:.9}
 
 /* ─────────────────────────────────────────────────────────
-   Hero layout
+   Hero
 ──────────────────────────────────────────────────────────*/
-body > .intro,
-body > .chat-container {
-  display: grid;
-  justify-items: center;
-}
-
-.intro {
-  padding-top: clamp(72px, 14vh, 120px);
-  padding-bottom: 8px;
-  text-align: center;
-}
-
-.intro h1 {
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  font-size: clamp(36px, 6vw, 64px);
-  margin-bottom: 8px;
-}
-
-.intro p {
-  color: var(--clr-text-muted);
-  font-size: clamp(16px, 1.6vw, 20px);
-}
+body>.intro, body>.chat-container{display:grid;justify-items:center}
+.intro{padding-top:clamp(72px,14vh,120px);padding-bottom:8px;text-align:center}
+.intro h1{font-weight:800;letter-spacing:-0.02em;font-size:clamp(36px,6vw,64px);margin-bottom:8px}
+.intro p{color:var(--clr-text-muted);font-size:clamp(16px,1.6vw,20px)}
 
 /* ─────────────────────────────────────────────────────────
-   Chat-wrapper – Lovable style
+   Chat wrapper
 ──────────────────────────────────────────────────────────*/
-.chat-container {
-  width: 100%;
-  margin-top: 6px;
-  padding: 0 var(--space-4) var(--space-12);
+.chat-container{width:100%;margin-top:6px;padding:0 var(--space-4) var(--space-12)}
+#chat-wrapper{
+  width:min(980px,92vw); margin:0 auto; background:var(--clr-white);
+  border:1px solid rgba(17,17,17,.08); border-radius:28px;
+  box-shadow:0 2px 8px rgba(0,0,0,0.06);
+  display:flex; flex-direction:column; overflow:hidden;
 }
-
-#chat-wrapper {
-  width: min(980px, 92vw);
-  margin: 0 auto;
-  background: var(--clr-white);
-  border: 1px solid rgba(17,17,17,.08);
-  border-radius: 28px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-#messages {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 0;
-  max-height: 340px;
-  overflow-y: auto;
-  background: var(--clr-white);
+#messages{
+  display:flex; flex-direction:column; gap:12px; padding:0;
+  max-height:340px; overflow-y:auto; background:var(--clr-white);
 }
 
 /* Input-området */
-#input-area {
-  border-top: 0;
-  background: var(--clr-white);
-  padding: 0;
-}
+#input-area{border-top:0; background:var(--clr-white); padding:0}
+.chat-inner{padding:8px 16px 0 16px}
 
-.chat-inner {
-  padding: 8px 16px 0 16px;
-}
-
-/* Single-line textarea with ellipsis so it never wraps or "disappears" */
-#input-area textarea {
-  width: 100%;
-  display: block;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  font-size: 18px;
-  line-height: 1.5;
-  color: var(--clr-text);
-  padding: 8px 12px;
-  border-radius: 0;
-  resize: none;
-  height: 44px;                 /* fixed baseline height */
-  overflow: hidden;             /* no scrollbars */
-  white-space: nowrap;          /* keep on one line */
-  text-overflow: ellipsis;      /* show … if too long */
-}
-#input-area textarea::placeholder {
-  color: rgba(0,0,0,0.40);
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-/* Action-raden — never wrap; pin right side */
-.chat-actions {
-  display: flex;
-  align-items: center;
-  padding: 8px 8px;
-  border-top: 1px solid rgba(0,0,0,0.05);
-  margin-top: 6px;
-  flex-wrap: nowrap;            /* <— stop wrapping when logged in */
-  gap: 8px;
-}
-
-.actions-left {
-  display: flex;
-  gap: 8px;
-  flex: 1 1 auto;               /* take remaining width */
-  min-width: 0;                 /* allow shrinking */
-}
-
-.actions-right {
-  display: flex;
-  gap: 8px;
-  flex: 0 0 auto;               /* keep compact */
-  margin-left: auto;            /* pin to the end */
-}
-
-.chip {
-  display: inline-flex;
-  align-items: center;
-  height: 36px;
-  padding: 0 14px;
-  border-radius: 9999px;
-  border: 1px solid rgba(0,0,0,.12);
-  background: #fff;
-  font-weight: 600;
-  font-size: 14px;
-  color: #111;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.chip:hover { background: #fafafa; }
-
-.chip-icon {
-  width: 36px;
-  padding: 0;
-  justify-content: center;
-  font-size: 18px;
-}
-
-.chip-muted {
-  border: 0;
-  background: rgba(0,0,0,.06);
-  color: #333;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-/* Send-knapp */
-.fab {
-  width: 36px;
-  height: 36px;
-  border-radius: 9999px;
-  border: 0;
-  background: #111;
-  color: #fff;
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-  transition: background .15s ease, transform .05s ease;
-}
-.fab:hover { background: #000; }
-.fab:active { transform: translateY(1px); }
-
-/* Bubblor */
-.message {
-  max-width: 78%;
-  padding: 10px 14px;
-  border-radius: 18px;
-  font-size: 16px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
-  opacity: 0; transform: translateY(8px);
-  animation: fadeIn .3s ease forwards;
-}
-@keyframes fadeIn { to { opacity: 1; transform: translateY(0); } }
-.message.user { align-self: flex-end; background: #fff; border: 1px solid rgba(0,0,0,.06); }
-.message.bot  { align-self: flex-start; background: #FFF6BF; }
-
-/* ─────────────────────────────────────────────────────────
-   Responsive
-──────────────────────────────────────────────────────────*/
-@media (max-width: 640px) {
-  .brand-logo { width: 36px; height: 36px; }
-  #chat-wrapper { width: min(100%, 94vw); border-radius: 24px; }
-  .fab { width: 34px; height: 34px; }
-  .chip { height: 34px; font-size: 13px; }
-}
-/* ===== CRITICAL FIXES (place at very end of styles.css) ===== */
-
-/* 1) Action-raden får aldrig radbrytas */
-.chat-actions{
-  display:flex !important;
-  align-items:center !important;
-  gap:8px !important;
-  flex-wrap:nowrap !important;                /* håll allt på en rad */
-  padding:8px 8px !important;
-  border-top:1px solid rgba(0,0,0,0.05) !important;
-  margin-top:6px !important;
-}
-
-/* 2) Vänster sida får krympa, höger sida är fast och pinnad längst till höger */
-.actions-left{
-  display:flex !important;
-  gap:8px !important;
-  flex:1 1 auto !important;                   /* ta kvarvarande utrymme */
-  min-width:0 !important;                     /* tillåt krympning */
-}
-.actions-right{
-  display:flex !important;
-  gap:8px !important;
-  flex:0 0 auto !important;                   /* krymp aldrig knapparna */
-  margin-left:auto !important;                /* håll till höger */
-  white-space:nowrap !important;              /* inga brytningar i chip+send */
-}
-
-/* 3) Knapparna ska inte påverka layout genom krympning */
-.fab, .chip, .chip-icon, .chip-muted{
-  flex:0 0 auto !important;                   /* lås storlek */
-  white-space:nowrap !important;
-}
-
-/* 4) Textarean: en rad, stabil höjd, ellipsis vid för lång text */
+/* Textarea – single-line baseline (JS expanderar vid input) */
 #input-area textarea{
-  width:100% !important;
-  display:block !important;
-  height:44px !important;                     /* stabil kort-höjd */
-  line-height:1.5 !important;
-  padding:8px 12px !important;
-  border:0 !important;
-  outline:0 !important;
-  background:transparent !important;
-  resize:none !important;
-  overflow:hidden !important;
-  white-space:nowrap !important;              /* håll på en rad */
-  text-overflow:ellipsis !important;          /* visa … i slutet */
+  width:100%; display:block;
+  border:0; outline:0; background:transparent;
+  font-size:18px; line-height:1.5; color:var(--clr-text);
+  padding:8px 12px; border-radius:0; resize:none;
+  height:44px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
 }
-#input-area textarea::placeholder{
-  white-space:nowrap !important;
-  text-overflow:ellipsis !important;
-}
+#input-area textarea::placeholder{color:rgba(0,0,0,0.40);white-space:nowrap;text-overflow:ellipsis}
 
-/* 5) Header-pill får inte radbrytas (undvik att den växer på konstiga sätt) */
-#user-area, #userName, #loginBtn{ white-space:nowrap !important; }
-/* ===== BULLETPROOF LAYOUT FOR ACTION ROW ===== */
-
-/* Gör actions-raden till två kolumner: vänster tar allt, höger är auto */
+/* Actions: två kolumner (vänster 1fr, höger auto) */
 .chat-actions{
-  display:grid !important;
-  grid-template-columns: 1fr auto !important;
-  align-items:center !important;
-  gap:8px !important;
-  padding:8px 8px !important;
-  border-top:1px solid rgba(0,0,0,0.05) !important;
-  margin-top:6px !important;
+  display:grid; grid-template-columns:1fr auto;
+  align-items:center; gap:8px; padding:8px 8px;
+  border-top:1px solid rgba(0,0,0,0.05); margin-top:6px;
+}
+.actions-left{min-width:0; display:flex; gap:8px; flex-wrap:nowrap}
+.actions-right{display:flex; gap:8px; justify-self:end; flex-wrap:nowrap}
+
+/* Chips/knappar */
+.chip{display:inline-flex;align-items:center;height:36px;padding:0 14px;border-radius:9999px;border:1px solid rgba(0,0,0,.12);background:#fff;font-weight:600;font-size:14px;color:#111;cursor:pointer;white-space:nowrap}
+.chip:hover{background:#fafafa}
+.chip-icon{width:36px;padding:0;justify-content:center;font-size:18px}
+.chip-muted{border:0;background:rgba(0,0,0,.06);color:#333;font-weight:600;white-space:nowrap}
+.fab{width:36px;height:36px;border-radius:9999px;border:0;background:#111;color:#fff;display:grid;place-items:center;cursor:pointer;transition:background .15s ease, transform .05s ease}
+.fab:hover{background:#000}
+.fab:active{transform:translateY(1px)}
+
+/* Bubbles */
+.message{max-width:78%;padding:10px 14px;border-radius:18px;font-size:16px;box-shadow:0 1px 4px rgba(0,0,0,0.04);opacity:0;transform:translateY(8px);animation:fadeIn .3s ease forwards}
+@keyframes fadeIn{to{opacity:1;transform:translateY(0)}}
+.message.user{align-self:flex-end;background:#fff;border:1px solid rgba(0,0,0,.06)}
+.message.bot{align-self:flex-start;background:#FFF6BF}
+
+/* Responsive */
+@media (max-width:640px){
+  .brand-logo{width:36px;height:36px}
+  #chat-wrapper{width:min(100%,94vw);border-radius:24px}
+  .fab{width:34px;height:34px}
+  .chip{height:34px;font-size:13px}
 }
 
-/* Vänster sida får krympa (ingen wrap), men hålla sig på en rad */
-.actions-left{
-  min-width:0 !important;
-  display:flex !important;
-  gap:8px !important;
-  flex-wrap:nowrap !important;
-}
-
-/* Höger sida är kompakt, fast bredd, alltid längst till höger */
-.actions-right{
-  display:flex !important;
-  gap:8px !important;
-  justify-self:end !important;  /* grid: placera längst till höger */
-  flex-wrap:nowrap !important;
-}
-
-/* Knappar ska inte krympa in till flera rader */
-.chip, .chip-icon, .chip-muted, .fab{
-  flex:0 0 auto !important;
-  white-space:nowrap !important;
-}
-
-/* Textarean: en rad, ellipsis – men visa hela texten om utrymme finns */
-#input-area textarea{
-  height:44px !important;
-  white-space:nowrap !important;
-  overflow:hidden !important;
-  text-overflow:ellipsis !important;
-}
-#input-area textarea::placeholder{
-  white-space:nowrap !important;
-  text-overflow:ellipsis !important;
-}
-/* Harden layout */
-#input-area { display:block !important; }
-#input-area .chat-inner { width:100% !important; }
+/* ===== FINAL OVERRIDES (don’t duplicate these below) ===== */
+#input-area{display:block !important}
+#input-area .chat-inner{width:100% !important}
+#user-area,#userName,#loginBtn{white-space:nowrap !important}
