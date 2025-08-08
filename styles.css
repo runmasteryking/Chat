@@ -65,9 +65,9 @@ header{
 ──────────────────────────────────────────────────────────*/
 body>.intro, body>.chat-container{display:grid;justify-items:center}
 .intro{
-  padding-top: calc(clamp(72px,14vh,120px) + 12vh); /* ⬅ Flyttat ner mer */
-  padding-bottom:8px;
-  text-align:center
+  padding-top: calc(clamp(72px,14vh,120px) + 12vh); /* Flyttat ner mer */
+  padding-bottom: clamp(2px, 1.5vh, 8px); /* Tajtare på små skärmar, mer luft på stora */
+  text-align:center;
 }
 .intro h1{font-weight:800;letter-spacing:-0.02em;font-size:clamp(36px,6vw,64px);margin-bottom:8px}
 .intro p{color:var(--clr-text-muted);font-size:clamp(16px,1.6vw,20px)}
@@ -77,7 +77,7 @@ body>.intro, body>.chat-container{display:grid;justify-items:center}
 ──────────────────────────────────────────────────────────*/
 .chat-container{
   width:100%;
-  margin-top: calc(6px + 10vh); /* ⬅ Flyttat ner mer */
+  margin-top: 40px; /* Samma avstånd oavsett inloggat/utloggat läge */
   padding:0 var(--space-4) var(--space-12)
 }
 #chat-wrapper{
@@ -87,8 +87,14 @@ body>.intro, body>.chat-container{display:grid;justify-items:center}
   display:flex; flex-direction:column; overflow:hidden;
 }
 #messages{
-  display:flex; flex-direction:column; gap:12px; padding:0;
-  max-height:340px; overflow-y:auto; background:var(--clr-white);
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  padding:0;
+  max-height:340px;
+  overflow-y:auto;
+  background:var(--clr-white);
+  min-height:160px; /* Fix för att hålla höjden stabil */
 }
 
 /* Input-området */
@@ -137,29 +143,14 @@ body>.intro, body>.chat-container{display:grid;justify-items:center}
   .chip{height:34px;font-size:13px}
 }
 
-/* ===== FINAL OVERRIDES (don’t duplicate these below) ===== */
+/* ===== FINAL OVERRIDES ===== */
 #input-area{display:block !important}
 #input-area .chat-inner{width:100% !important}
 #user-area,#userName,#loginBtn{white-space:nowrap !important}
-/* Avstånd mellan intro-text och chatt – responsivt */
-.intro {
-  padding-top: calc(clamp(72px, 14vh, 120px) + 12vh);
-  padding-bottom: clamp(2px, 1.5vh, 8px); /* tajtare på små skärmar, mer luft på stora */
-  text-align: center;
-}
 
 /* Extra justering för riktigt små mobiler */
 @media (max-width: 480px) {
   .intro {
-    padding-bottom: 2px; /* minsta möjliga luft på mobil */
+    padding-bottom: 2px;
   }
-}
-/* Gemensam spacing för chat-container oavsett inloggat/utloggat läge */
-.chat-container {
-    margin-top: 40px !important; /* samma avstånd som inloggat läge */
-}
-
-/* Minska gapet mellan intro-text och chatt i utloggat läge */
-.intro {
-    padding-bottom: 0 !important;
 }
