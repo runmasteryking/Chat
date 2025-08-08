@@ -195,3 +195,7 @@ body>.intro, body>.chat-container{display:grid;justify-items:center}
 #input-area{display:block !important}
 #input-area .chat-inner{width:100% !important}
 #user-area,#userName,#loginBtn{white-space:nowrap !important}
+/* Dölj heron utan att ta bort höjden (hindrar hopp i layouten) */
+.intro-hidden {
+  visibility: hidden; /* sektionen behåller höjden i layouten */
+}
