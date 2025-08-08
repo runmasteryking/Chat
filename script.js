@@ -32,7 +32,7 @@ window.addEventListener("DOMContentLoaded", () => {
   // ── State ─────────────────────────────────────────────────────────────────
   let currentUser = null;
   let firstMessageSent = false;
-  let isSending = false; // prevents double sends
+  let isSending = false;
 
   const userProfileState = {
     name: null, language: null, gender: null, birthYear: null,
@@ -98,13 +98,12 @@ window.addEventListener("DOMContentLoaded", () => {
   function showChatUI() {
     chatWrapper.style.display = "flex";
     messages.style.display    = "flex";
-    inputArea.style.display   = "block";  // keep layout stable
+    inputArea.style.display   = "block";
   }
 
   // ── Chat flow ─────────────────────────────────────────────────────────────
   sendBtn.addEventListener("click", sendMessage);
 
-  // SINGLE keydown handler (no inline onkeydown in HTML)
   input.addEventListener("keydown", e => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -112,35 +111,29 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Optional: don't scroll page when focusing the composer
-  input.addEventListener("focus", () => {
-    // Do nothing that triggers scroll; keep page stable
+  // Klick varsomhelst i input-området för att börja skriva
+  inputArea.addEventListener("click", e => {
+    if (e.target !== input) input.focus();
   });
 
   async function sendMessage() {
-    if (isSending) return; // guard against double triggers
-
+    if (isSending) return;
     const text = input.value.trim();
     if (!text) return;
     isSending = true;
 
     try {
       const isFirst = !firstMessageSent;
+      firstMessageSent = true; // markerar första meddelandet som skickat
 
-      if (isFirst) {
-        intro.style.display = "none";
-        firstMessageSent = true;
-      }
-
-      // Always append user's message first
+      // Lägg alltid till användarens meddelande direkt
       appendUser(text);
       await persist("user", text);
       await summarize("user", text);
       input.value = "";
 
-      // Onboarding: ask first profile question AFTER user's first message (once)
-      const needsOnboarding = !userProfileState.profileComplete && isFirst;
-      if (needsOnboarding) {
+      // Onboarding vid första meddelandet om profil ej komplett
+      if (!userProfileState.profileComplete && isFirst) {
         const q = profileQuestions[0].question;
         appendBot(q);
         await persist("bot", q);
@@ -148,10 +141,10 @@ window.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // Normal AI flow
+      // Normal AI-svar
       const thinking = createMessage("bot", "…", "thinking");
       messages.appendChild(thinking);
-      autoScroll();
+      autoScrollIfNeeded();
 
       const reply = await generateBotReply(text);
       thinking.remove();
@@ -233,35 +226,17 @@ window.addEventListener("DOMContentLoaded", () => {
 
   function appendUser(text){
     messages.appendChild(createMessage("user", text));
-    autoScroll();
+    autoScrollIfNeeded();
   }
   function appendBot(text){
     messages.appendChild(createMessage("bot", text));
-    autoScroll();
+    autoScrollIfNeeded();
   }
-  function autoScroll(){
-    messages.scrollTop = messages.scrollHeight;
-  }
-});
-// Auto-scroll till botten om användaren redan är där
-function scrollToBottomIfNeeded() {
-  const messagesEl = document.getElementById("messages");
-  const atBottom =
-    messagesEl.scrollHeight - messagesEl.scrollTop <= messagesEl.clientHeight + 10;
 
-  if (atBottom) {
-    messagesEl.scrollTop = messagesEl.scrollHeight;
-  }
-}
-
-// Kör varje gång ett nytt meddelande läggs till
-const messagesEl = document.getElementById("messages");
-const observer = new MutationObserver(scrollToBottomIfNeeded);
-observer.observe(messagesEl, { childList: true });
-// Gör hela input-området klickbart för att börja skriva
-document.getElementById("input-area").addEventListener("click", function(e) {
-  const textarea = document.getElementById("userInput");
-  if (e.target !== textarea) {
-    textarea.focus();
+  function autoScrollIfNeeded(){
+    const atBottom = messages.scrollHeight - messages.scrollTop <= messages.clientHeight + 10;
+    if (atBottom) {
+      messages.scrollTop = messages.scrollHeight;
+    }
   }
 });
