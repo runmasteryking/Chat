@@ -136,8 +136,10 @@ body > .chat-container {
   padding: 8px 16px 0 16px;
 }
 
+/* Single-line textarea with ellipsis so it never wraps or "disappears" */
 #input-area textarea {
   width: 100%;
+  display: block;
   border: 0;
   outline: 0;
   background: transparent;
@@ -147,29 +149,40 @@ body > .chat-container {
   padding: 8px 12px;
   border-radius: 0;
   resize: none;
-  overflow: hidden;           /* för auto-expand */
-  white-space: nowrap;        /* gör så placeholdern inte bryts i två rader */
+  height: 44px;                 /* fixed baseline height */
+  overflow: hidden;             /* no scrollbars */
+  white-space: nowrap;          /* keep on one line */
+  text-overflow: ellipsis;      /* show … if too long */
 }
 #input-area textarea::placeholder {
   color: rgba(0,0,0,0.40);
   white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
-/* Action-raden */
+/* Action-raden — never wrap; pin right side */
 .chat-actions {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   padding: 8px 8px;
   border-top: 1px solid rgba(0,0,0,0.05);
   margin-top: 6px;
+  flex-wrap: nowrap;            /* <— stop wrapping when logged in */
+  gap: 8px;
 }
 
-.actions-left,
+.actions-left {
+  display: flex;
+  gap: 8px;
+  flex: 1 1 auto;               /* take remaining width */
+  min-width: 0;                 /* allow shrinking */
+}
+
 .actions-right {
   display: flex;
-  align-items: center;
   gap: 8px;
+  flex: 0 0 auto;               /* keep compact */
+  margin-left: auto;            /* pin to the end */
 }
 
 .chip {
