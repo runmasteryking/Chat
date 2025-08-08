@@ -1,16 +1,13 @@
 // netlify/functions/ask-gpt.js
-const fetch = require("node-fetch");
 
 exports.handler = async (event) => {
   try {
-    // 1) API-nyckel och modell
     const apiKey = process.env.OPENAI_API_KEY;
     const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
     if (!apiKey) {
       return json(500, { error: "Missing OPENAI_API_KEY" });
     }
 
-    // 2) Läs request-body
     let body;
     try {
       body = JSON.parse(event.body || "{}");
@@ -18,18 +15,9 @@ exports.handler = async (event) => {
       return json(400, { error: "Invalid JSON" });
     }
 
-    const {
-      systemSummary = "",
-      recentMessages = "",
-      message = "",
-      userProfile = {}
-    } = body;
+    const { systemSummary = "", recentMessages = "", message = "", userProfile = {} } = body;
+    if (!message) return json(400, { error: "Missing message" });
 
-    if (!message) {
-      return json(400, { error: "Missing message" });
-    }
-
-    // 3) Plocka profil
     const name     = (userProfile.name || "Runner").toString().trim();
     const language = (userProfile.language || "english").toLowerCase();
     const level    = (userProfile.level || "intermediate").toLowerCase();
@@ -38,7 +26,6 @@ exports.handler = async (event) => {
     const requiredFields = ["gender", "birthYear", "current5kTime", "weeklySessions"];
     const missingFields = requiredFields.filter(f => !userProfile[f]);
 
-    // 4) Systemprompt
     const roleMap = {
       "race-planner":     "You're their Race Planner: focus on pacing, taper, course strategy, negative splits.",
       "strategist":       "You're their Mental Strategist: mindset cues, in-race decisions, calm under pressure.",
@@ -86,27 +73,17 @@ If you learn new profile info, output it strictly inside:
 [PROFILE UPDATE]{ "key": "value", ... }[/PROFILE UPDATE]
 `.trim();
 
-    // 5) Bygg meddelanden
     const messagesForOpenAI = [
       { role: "system", content: systemPrompt },
       { role: "user", content: message }
     ];
 
-    // 6) Anropa OpenAI
     const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model,
-        messages: messagesForOpenAI,
-        temperature: 0.7
-      })
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      body: JSON.stringify({ model, messages: messagesForOpenAI, temperature: 0.7 })
     });
 
-    // 7) Tydlig felhantering
     if (!openaiRes.ok) {
       const errText = await openaiRes.text();
       console.error("OpenAI API error:", openaiRes.status, errText);
@@ -116,35 +93,7 @@ If you learn new profile info, output it strictly inside:
     const data = await openaiRes.json();
     const rawReply = (data.choices?.[0]?.message?.content || "").trim();
 
-    // 8) Extrahera ev. profiluppdatering
     let profileUpdate = {};
     const match = rawReply.match(/\[PROFILE UPDATE\]([\s\S]*?)\[\/PROFILE UPDATE\]/);
     if (match) {
-      try {
-        profileUpdate = JSON.parse(match[1].trim());
-      } catch (e) {
-        console.warn("Failed to parse profile update JSON:", e);
-      }
-    }
-
-    const cleanedReply = rawReply
-      .replace(/\[PROFILE UPDATE\][\s\S]*?\[\/PROFILE UPDATE\]/g, "")
-      .trim();
-
-    // 9) Svar
-    return json(200, { reply: cleanedReply, profileUpdate });
-
-  } catch (err) {
-    console.error("🔥 ask-gpt.js error:", err);
-    return json(500, { error: "Server error", detail: String(err?.message || err) });
-  }
-};
-
-// Hjälpfunktion för konsekventa JSON-svar
-function json(statusCode, obj) {
-  return {
-    statusCode,
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(obj)
-  };
-}
+      tr
