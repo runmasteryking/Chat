@@ -35,7 +35,7 @@ window.addEventListener("DOMContentLoaded", () => {
   let isSending = false;
   let lastSendAt = 0;
 
-  const userProfileState = {
+  let userProfileState = {
     name: null, language: "swedish", gender: null, birthYear: null,
     level: null, weeklySessions: null, current5kTime: null,
     injuryNotes: null, raceComingUp: null, raceDate: null,
@@ -83,19 +83,20 @@ window.addEventListener("DOMContentLoaded", () => {
     const snap = await getDoc(ref);
     if (snap.exists()) {
       const data = snap.data();
-
-      // Slå ihop root-fält och profile-map
-      Object.assign(userProfileState, data, data.profile || {});
-
-      // Spara tillbaka merged state till Firestore
-      await setDoc(ref, { lastLogin: serverTimestamp(), profile: userProfileState }, { merge: true });
+      // slå ihop root och profile-map
+      userProfileState = { ...userProfileState, ...data.profile };
+      if (!userProfileState.name && data.name) {
+        userProfileState.name = data.name;
+      }
     }
+    // uppdatera senaste login
+    await setDoc(ref, { lastLogin: serverTimestamp(), profile: userProfileState }, { merge: true });
   }
 
   function showUserInfo(u) {
     loginBtn.style.display = "none";
     userInfo.style.display = "flex";
-    userName.textContent = u.displayName || "Runner";
+    userName.textContent = u.displayName || userProfileState.name || "Runner";
   }
 
   function showChatUI() {
@@ -111,21 +112,6 @@ window.addEventListener("DOMContentLoaded", () => {
       sendMessage();
     }
   });
-  window.handleKey = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  };
-  inputArea.addEventListener("click", e => { if (e.target !== input) input.focus(); });
-  chatWrapper.addEventListener("click", e => {
-    const isClickable = e.target.closest(".fab, .chip, .message");
-    if (!isClickable) input.focus();
-  });
-
-  const mo = new MutationObserver(() => autoScrollIfNeeded(true));
-  mo.observe(messages, { childList: true });
-
   sendBtn.addEventListener("click", sendMessage);
 
   async function sendMessage() {
@@ -140,7 +126,7 @@ window.addEventListener("DOMContentLoaded", () => {
     try {
       const isFirst = !firstMessageSent;
       if (isFirst) {
-        if (intro) intro.classList.add("intro-hidden"); // döljer utan layout-hopp
+        if (intro) intro.classList.add("intro-hidden");
         firstMessageSent = true;
       }
 
@@ -149,33 +135,28 @@ window.addEventListener("DOMContentLoaded", () => {
       summarize("user", text).catch(e => console.warn("summarize user err:", e));
       input.value = "";
 
-      // Om profilen inte är komplett, hoppa till nästa obesvarade fråga
+      // om profilen är ofullständig, fråga nästa fråga
       if (!userProfileState.profileComplete) {
-        const nextQ = profileQuestions.find(q => !userProfileState[q.key]);
+        const nextQ = getNextProfileQuestion();
         if (nextQ) {
           appendBot(nextQ.question);
           await persist("bot", nextQ.question);
           summarize("bot", nextQ.question).catch(e => console.warn("summarize bot err:", e));
           return;
         } else {
-          // Alla frågor besvarade — markera som klar
           userProfileState.profileComplete = true;
-          const uref = doc(db, "users", currentUser.uid);
-          await setDoc(uref, { profile: userProfileState }, { merge: true });
+          await saveProfile();
         }
       }
 
-      // Annars — vanlig konversation
       const thinking = createMessage("bot", "…", "thinking");
       messages.appendChild(thinking);
-      autoScrollIfNeeded(true);
 
       const reply = await generateBotReply(text);
       thinking.remove();
       appendBot(reply);
       await persist("bot", reply);
       summarize("bot", reply).catch(e => console.warn("summarize bot err:", e));
-
     } catch (err) {
       console.error(err);
       appendBot(`⚠️ ${err.message || "Something went wrong."}`);
@@ -184,7 +165,15 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // ── Persistence & Summary
+  function getNextProfileQuestion() {
+    for (const q of profileQuestions) {
+      if (!userProfileState[q.key]) {
+        return q;
+      }
+    }
+    return null;
+  }
+
   async function persist(sender, text) {
     if (!currentUser) return;
     const id = Date.now().toString();
@@ -195,8 +184,7 @@ window.addEventListener("DOMContentLoaded", () => {
   async function summarize(sender, text) {
     if (!currentUser) return;
     const uref = doc(db, "users", currentUser.uid);
-    const snap = await getDoc(uref);
-    const existing = snap.data()?.profile?.conversationSummary || "";
+    const existing = userProfileState.conversationSummary || "";
 
     const res = await fetch("/.netlify/functions/summarize-gpt", {
       method: "POST",
@@ -207,22 +195,22 @@ window.addEventListener("DOMContentLoaded", () => {
     });
 
     if (!res.ok) {
-      const t = await res.text();
-      console.warn("summarize-gpt failed:", res.status, t);
+      console.warn("summarize-gpt failed:", res.status);
       return;
     }
 
     const { summary } = await res.json();
     userProfileState.conversationSummary = summary;
-    await setDoc(uref, { profile: { conversationSummary: summary } }, { merge: true });
+    await saveProfile();
   }
 
-  // ── AI
-  async function generateBotReply(userText) {
+  async function saveProfile() {
+    if (!currentUser) return;
     const uref = doc(db, "users", currentUser.uid);
-    const snap = await getDoc(uref);
-    const summary = snap.data()?.profile?.conversationSummary || "";
+    await setDoc(uref, { profile: userProfileState, updatedAt: serverTimestamp() }, { merge: true });
+  }
 
+  async function generateBotReply(userText) {
     const msgsCol = collection(db, "users", currentUser.uid, "messages");
     const qy = query(msgsCol, orderBy("timestamp","desc"), limit(5));
     const ds = await getDocs(qy);
@@ -232,7 +220,7 @@ window.addEventListener("DOMContentLoaded", () => {
       method: "POST",
       headers: {"Content-Type":"application/json"},
       body: JSON.stringify({
-        systemSummary:  summary,
+        systemSummary:  userProfileState.conversationSummary,
         recentMessages: recent,
         message:        userText,
         userProfile:    { ...userProfileState, name: userProfileState.name || currentUser.displayName }
@@ -241,14 +229,13 @@ window.addEventListener("DOMContentLoaded", () => {
 
     if (!res.ok) {
       const text = await res.text();
-      console.error("ask-gpt failed:", res.status, text);
       throw new Error(`ask-gpt ${res.status}: ${text}`);
     }
 
     const data = await res.json();
     if (data.profileUpdate && Object.keys(data.profileUpdate).length) {
       Object.assign(userProfileState, data.profileUpdate);
-      await setDoc(uref, { profile: userProfileState, updatedAt: serverTimestamp() }, { merge: true });
+      await saveProfile();
     }
     return data.reply || "";
   }
@@ -262,21 +249,8 @@ window.addEventListener("DOMContentLoaded", () => {
   }
   function appendUser(text){
     messages.appendChild(createMessage("user", text));
-    autoScrollIfNeeded(true);
   }
   function appendBot(text){
     messages.appendChild(createMessage("bot", text));
-    autoScrollIfNeeded(true);
-  }
-
-  function autoScrollIfNeeded(smooth = false){
-    const atBottom = messages.scrollHeight - messages.scrollTop <= messages.clientHeight + 10;
-    if (atBottom) {
-      if (smooth && "scrollTo" in messages) {
-        messages.scrollTo({ top: messages.scrollHeight, behavior: "smooth" });
-      } else {
-        messages.scrollTop = messages.scrollHeight;
-      }
-    }
   }
 });
