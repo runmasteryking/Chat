@@ -154,3 +154,12 @@ body>.intro, body>.chat-container{display:grid;justify-items:center}
     padding-bottom: 2px; /* minsta möjliga luft på mobil */
   }
 }
+/* Gemensam spacing för chat-container oavsett inloggat/utloggat läge */
+.chat-container {
+    margin-top: 40px !important; /* samma avstånd som inloggat läge */
+}
+
+/* Minska gapet mellan intro-text och chatt i utloggat läge */
+.intro {
+    padding-bottom: 0 !important;
+}
