@@ -64,12 +64,10 @@ header{
    Hero
 ──────────────────────────────────────────────────────────*/
 body>.intro, body>.chat-container{display:grid;justify-items:center}
-
-/* Flyttat ner textdelen med +5vh extra */
 .intro{
-  padding-top:calc(clamp(72px,14vh,120px) + 5vh);
+  padding-top: calc(clamp(72px,14vh,120px) + 12vh); /* ⬅ Flyttat ner mer */
   padding-bottom:8px;
-  text-align:center;
+  text-align:center
 }
 .intro h1{font-weight:800;letter-spacing:-0.02em;font-size:clamp(36px,6vw,64px);margin-bottom:8px}
 .intro p{color:var(--clr-text-muted);font-size:clamp(16px,1.6vw,20px)}
@@ -77,14 +75,11 @@ body>.intro, body>.chat-container{display:grid;justify-items:center}
 /* ─────────────────────────────────────────────────────────
    Chat wrapper
 ──────────────────────────────────────────────────────────*/
-
-/* Flyttat ner chattfönstret med 4vh extra */
 .chat-container{
   width:100%;
-  margin-top:calc(6px + 4vh);
-  padding:0 var(--space-4) var(--space-12);
+  margin-top: calc(6px + 10vh); /* ⬅ Flyttat ner mer */
+  padding:0 var(--space-4) var(--space-12)
 }
-
 #chat-wrapper{
   width:min(980px,92vw); margin:0 auto; background:var(--clr-white);
   border:1px solid rgba(17,17,17,.08); border-radius:28px;
@@ -142,7 +137,7 @@ body>.intro, body>.chat-container{display:grid;justify-items:center}
   .chip{height:34px;font-size:13px}
 }
 
-/* ===== FINAL OVERRIDES ===== */
+/* ===== FINAL OVERRIDES (don’t duplicate these below) ===== */
 #input-area{display:block !important}
 #input-area .chat-inner{width:100% !important}
 #user-area,#userName,#loginBtn{white-space:nowrap !important}
