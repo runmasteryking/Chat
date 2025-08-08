@@ -5,15 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Run Mastery</title>
 
-  <!-- Font (varmare) -->
+  <!-- Font -->
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap" rel="stylesheet" />
 
-  <!-- Styles -->
-<link rel="stylesheet" href="styles.css?v=fix1" />
+  <!-- Styles (cache-bust) -->
+  <link rel="stylesheet" href="styles.css?v=fix2" />
 </head>
 <body>
 
-  <!-- HEADER (transparent, ligger ovanpå bakgrunden) -->
+  <!-- HEADER (transparent, ovanpå bakgrunden) -->
   <header>
     <div class="brand">
       <img src="logo.png" alt="Run Mastery logo" class="brand-logo" />
@@ -30,19 +30,15 @@
 
   <!-- HERO + CHAT -->
   <main role="main">
-    <!-- Hero copy -->
     <section class="intro" id="intro" aria-labelledby="hero-title">
       <h1 id="hero-title">Your journey. Your pace.</h1>
       <p>Helping you find joy, strength and progress in every run</p>
     </section>
 
-    <!-- Chat container (centrerad likt Lovable) -->
     <section class="chat-container" aria-label="Conversation">
       <div id="chat-wrapper">
-        <!-- Meddelanden (kan vara tomt initialt) -->
         <div id="messages" aria-live="polite" aria-atomic="false"></div>
 
-        <!-- Input-område i Lovable-stil -->
         <div id="input-area">
           <div class="chat-inner">
             <textarea
@@ -57,13 +53,11 @@
             <div class="chat-actions">
               <div class="actions-left">
                 <button class="chip chip-icon" type="button" id="newThreadBtn" title="New">+</button>
-                <!-- Attach/Public borttagna -->
               </div>
 
               <div class="actions-right">
                 <button class="chip chip-muted" type="button" id="modelChip" title="Model">GPT-5</button>
                 <button class="fab" id="sendBtn" type="button" aria-label="Send message">
-                  <!-- enkel uppåtpil -->
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                     <path d="M12 5l7 7m-7-7l-7 7m7-7v14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                   </svg>
@@ -79,6 +73,6 @@
 
   <!-- SCRIPTS -->
   <script type="module" src="firebase-config.js"></script>
-  <script type="module" src="script.js"></script>
+  <script type="module" src="script.js?v=fix2"></script>
 </body>
 </html>
