@@ -81,10 +81,15 @@ window.addEventListener("DOMContentLoaded", () => {
   async function loadProfile(uid) {
     const ref = doc(db, "users", uid);
     const snap = await getDoc(ref);
-    if (snap.exists() && snap.data().profile) {
-      Object.assign(userProfileState, snap.data().profile);
+    if (snap.exists()) {
+      const data = snap.data();
+
+      // Slå ihop root-fält och profile-map
+      Object.assign(userProfileState, data, data.profile || {});
+
+      // Spara tillbaka merged state till Firestore
+      await setDoc(ref, { lastLogin: serverTimestamp(), profile: userProfileState }, { merge: true });
     }
-    await setDoc(ref, { lastLogin: serverTimestamp(), profile: userProfileState }, { merge: true });
   }
 
   function showUserInfo(u) {
@@ -141,18 +146,26 @@ window.addEventListener("DOMContentLoaded", () => {
 
       appendUser(text);
       await persist("user", text);
-      // Sammanfattning får aldrig stoppa chatten
       summarize("user", text).catch(e => console.warn("summarize user err:", e));
       input.value = "";
 
-      if (!userProfileState.profileComplete && isFirst) {
-        const q = profileQuestions[0].question;
-        appendBot(q);
-        await persist("bot", q);
-        summarize("bot", q).catch(e => console.warn("summarize bot err:", e));
-        return;
+      // Om profilen inte är komplett, hoppa till nästa obesvarade fråga
+      if (!userProfileState.profileComplete) {
+        const nextQ = profileQuestions.find(q => !userProfileState[q.key]);
+        if (nextQ) {
+          appendBot(nextQ.question);
+          await persist("bot", nextQ.question);
+          summarize("bot", nextQ.question).catch(e => console.warn("summarize bot err:", e));
+          return;
+        } else {
+          // Alla frågor besvarade — markera som klar
+          userProfileState.profileComplete = true;
+          const uref = doc(db, "users", currentUser.uid);
+          await setDoc(uref, { profile: userProfileState }, { merge: true });
+        }
       }
 
+      // Annars — vanlig konversation
       const thinking = createMessage("bot", "…", "thinking");
       messages.appendChild(thinking);
       autoScrollIfNeeded(true);
@@ -162,6 +175,7 @@ window.addEventListener("DOMContentLoaded", () => {
       appendBot(reply);
       await persist("bot", reply);
       summarize("bot", reply).catch(e => console.warn("summarize bot err:", e));
+
     } catch (err) {
       console.error(err);
       appendBot(`⚠️ ${err.message || "Something went wrong."}`);
