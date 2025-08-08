@@ -39,9 +39,7 @@ html,body{
   line-height:var(--lh);
   color:var(--clr-text);
   background:radial-gradient(1200px 600px at 50% 10%,#fffef4 0%,var(--clr-bg-end) 40%,var(--clr-bg-start) 100%);
-
-  /* Prevent browser scroll-anchoring jump when new messages mount */
-  overflow-anchor: none;
+  overflow-anchor: none; /* Stoppar scroll jump */
 }
 
 /* ─────────────────────────────────────────────────────────
@@ -68,8 +66,8 @@ header{
 ──────────────────────────────────────────────────────────*/
 body>.intro, body>.chat-container{display:grid;justify-items:center}
 .intro{
-  padding-top: calc(clamp(72px,14vh,120px) + 12vh); /* Flyttat ner mer */
-  padding-bottom: clamp(2px, 1.5vh, 8px); /* Tajtare på små skärmar, mer luft på stora */
+  padding-top: calc(clamp(72px,14vh,120px) + 12vh);
+  padding-bottom: clamp(2px, 1.5vh, 8px);
   text-align:center;
 }
 .intro h1{font-weight:800;letter-spacing:-0.02em;font-size:clamp(36px,6vw,64px);margin-bottom:8px}
@@ -80,7 +78,7 @@ body>.intro, body>.chat-container{display:grid;justify-items:center}
 ──────────────────────────────────────────────────────────*/
 .chat-container{
   width:100%;
-  margin-top: 40px; /* Samma avstånd oavsett inloggat/utloggat läge */
+  margin-top: 40px;
   padding:0 var(--space-4) var(--space-12)
 }
 #chat-wrapper{
@@ -90,37 +88,40 @@ body>.intro, body>.chat-container{display:grid;justify-items:center}
   display:flex; flex-direction:column; overflow:hidden;
 }
 
-/* Meddelandelistan – stabil höjd så kortet inte hoppar */
+/* ── Stabil meddelandehöjd ── */
 #messages{
   display:flex;
   flex-direction:column;
   gap:12px;
-  padding:0;
-  min-height:160px;   /* keeps the card from shrinking to 0 initially */
-  max-height:340px;   /* previous cap */
+  padding: var(--space-4) var(--space-4) var(--space-6);
+  min-height:300px;   /* Ger stabil kort-höjd även innan första meddelandet */
+  max-height:340px;   
   overflow-y:auto;
   background:var(--clr-white);
+  cursor:text; /* Ger text-cursor så att man förstår att man kan klicka */
 }
 
-/* Input-området */
-#input-area{border-top:0; background:var(--clr-white); padding:0}
+/* ── Input-området ── */
+#input-area{
+  border-top:0; background:var(--clr-white); padding:0;
+}
 .chat-inner{padding:8px 16px 0 16px}
 
-/* Textarea – fast höjd, ingen JS-autoresize, intern scroll vid långa inputs */
+/* Textarea */
 #input-area textarea{
   width:100%; display:block;
   border:0; outline:0; background:transparent;
   font-size:18px; line-height:1.5; color:var(--clr-text);
   padding:8px 12px; border-radius:0; resize:none;
 
-  height:44px;             /* fixed line height */
-  overflow:auto;           /* allow internal scroll for long input */
-  white-space:normal;      /* wrap inside the textarea */
-  text-overflow:clip;      /* no ellipsis needed */
+  height:44px;            
+  overflow:auto;          
+  white-space:normal;     
+  text-overflow:clip;     
 }
 #input-area textarea::placeholder{color:rgba(0,0,0,0.40)}
 
-/* Actions: två kolumner (vänster 1fr, höger auto) */
+/* Actions */
 .chat-actions{
   display:grid; grid-template-columns:1fr auto;
   align-items:center; gap:8px; padding:8px 8px;
@@ -138,8 +139,17 @@ body>.intro, body>.chat-container{display:grid;justify-items:center}
 .fab:hover{background:#000}
 .fab:active{transform:translateY(1px)}
 
-/* Bubbles */
-.message{max-width:78%;padding:10px 14px;border-radius:18px;font-size:16px;box-shadow:0 1px 4px rgba(0,0,0,0.04);opacity:0;transform:translateY(8px);animation:fadeIn .3s ease forwards}
+/* ── Bubbles ── */
+.message{
+  max-width:78%;
+  padding:10px 14px;
+  border-radius:18px;
+  font-size:16px;
+  box-shadow:0 1px 4px rgba(0,0,0,0.04);
+  opacity:0;
+  transform:translateY(8px);
+  animation:fadeIn .3s ease forwards;
+}
 @keyframes fadeIn{to{opacity:1;transform:translateY(0)}}
 .message.user{align-self:flex-end;background:#fff;border:1px solid rgba(0,0,0,.06)}
 .message.bot{align-self:flex-start;background:#FFF6BF}
@@ -152,12 +162,11 @@ body>.intro, body>.chat-container{display:grid;justify-items:center}
   .chip{height:34px;font-size:13px}
 }
 
-/* ===== FINAL OVERRIDES ===== */
+/* Final overrides */
 #input-area{display:block !important}
 #input-area .chat-inner{width:100% !important}
 #user-area,#userName,#loginBtn{white-space:nowrap !important}
 
-/* Extra justering för riktigt små mobiler */
 @media (max-width: 480px) {
   .intro { padding-bottom: 2px; }
 }
