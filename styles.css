@@ -1,8 +1,7 @@
-/*──────────────────────────────────────────────────────────────────────────
-  Design-tokens: färger, typografi, spacing, radier
-──────────────────────────────────────────────────────────────────────────*/
+/* ─────────────────────────────────────────────────────────
+   Tokens
+──────────────────────────────────────────────────────────*/
 :root {
-  /* Colors */
   --clr-primary: #FFD34E;
   --clr-primary-alt: #FFF176;
   --clr-bg-start: #FFE36B;
@@ -10,64 +9,39 @@
   --clr-text: #111;
   --clr-text-muted: #6B7280;
   --clr-white: #fff;
-  --clr-overlay: rgba(255,255,255,0.85);
 
-  /* Radius */
   --radius-sm: 8px;
   --radius-md: 16px;
   --radius-lg: 32px;
   --radius-pill: 9999px;
 
-  /* Spacing */
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 16px;
-  --space-lg: 24px;
-  --space-xl: 32px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
 
-  /* Typography */
-  --font-sans: 'Inter', sans-serif;
-  --fz-base: 16px;
-  --fz-lg: 18px;
-  --fz-xl: 24px;
-  --lh-base: 1.6;
+  --font-sans: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  --lh: 1.6;
 }
 
-/*──────────────────────────────────────────────────────────────────────────
-  Global resets & layout
-──────────────────────────────────────────────────────────────────────────*/
+/* ─────────────────────────────────────────────────────────
+   Reset + base
+──────────────────────────────────────────────────────────*/
 *,
 *::before,
-*::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+*::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html, body {
   height: 100%;
   font-family: var(--font-sans);
-  font-size: var(--fz-base);
-  line-height: var(--lh-base);
+  line-height: var(--lh);
   color: var(--clr-text);
-  background: linear-gradient(to top, var(--clr-bg-start), var(--clr-bg-end));
-  position: relative;
-  overflow-x: hidden;
+  background: radial-gradient(1200px 600px at 50% 10%, #fffef4 0%, var(--clr-bg-end) 40%, var(--clr-bg-start) 100%);
 }
 
-/* Overlay-fade över hela sidan */
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  background: linear-gradient(to top, var(--clr-overlay) 0%, transparent 30%);
-  pointer-events: none;
-  z-index: 0;
-}
-
-/*──────────────────────────────────────────────────────────────────────────
-  Header
-──────────────────────────────────────────────────────────────────────────*/
+/* Sticky header med lätt glas */
 header {
   position: sticky;
   top: 0;
@@ -75,256 +49,158 @@ header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: var(--space-md) var(--space-lg);
-  background: transparent;
+  padding: var(--space-4) var(--space-8);
+  background: rgba(255,255,255,0.6);
   backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
 }
 
-.brand {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  white-space: nowrap;
+/* Brand */
+.brand { display: flex; align-items: center; gap: var(--space-3); white-space: nowrap; }
+.brand-logo { width: 40px; height: 40px; border-radius: var(--radius-pill); background: var(--clr-primary); object-fit: cover; }
+.brand-title { font-weight: 800; letter-spacing: -0.02em; font-size: clamp(18px, 2.2vw, 24px); }
+
+/* User pill */
+#user-area { display: flex; align-items: center; gap: var(--space-4); }
+#loginBtn, #userName {
+  background: #111; color: #fff; border: 0; cursor: pointer;
+  padding: 8px 14px; border-radius: var(--radius-pill); font-weight: 600;
+}
+#loginBtn:hover, #userName:hover { opacity: .9; }
+
+/* ─────────────────────────────────────────────────────────
+   Hero layout (Lovable-känsla)
+   .intro + .chat-container bildar en centrerad “fold”
+──────────────────────────────────────────────────────────*/
+body > .intro,
+body > .chat-container {
+  /* gör dessa två till ett centrerat block tillsammans */
+  display: grid;
+  justify-items: center;
 }
 
-.brand-logo {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-pill);
-  background-color: var(--clr-primary);
-  object-fit: cover;
-}
-
-.brand-title {
-  font-size: var(--fz-xl);
-  font-weight: 800;
-  letter-spacing: -0.5px;
-}
-
-#user-area {
-  display: flex;
-  align-items: center;
-  gap: var(--space-md);
-}
-
-#loginBtn,
-#userName {
-  background: var(--clr-primary);
-  color: var(--clr-text);
-  font-weight: 600;
-  border: none;
-  border-radius: var(--radius-pill);
-  padding: var(--space-sm) var(--space-lg);
-  cursor: pointer;
-  transition: background .2s;
-  white-space: nowrap;
-}
-
-#loginBtn:hover,
-#userName:hover {
-  background: var(--clr-primary-alt);
-}
-
-/*──────────────────────────────────────────────────────────────────────────
-  Intro
-──────────────────────────────────────────────────────────────────────────*/
 .intro {
+  min-height: calc(50vh - 60px); /* trycker ned mot mitten */
+  padding: var(--space-12) var(--space-4) var(--space-6);
   text-align: center;
-  padding: var(--space-xl) var(--space-md) var(--space-lg);
-  min-height: 120px;
 }
 
+/* Stor, kompakt rubrik */
 .intro h1 {
-  font-size: 2.5rem;
   font-weight: 800;
-  margin-bottom: var(--space-sm);
+  letter-spacing: -0.02em;
+  font-size: clamp(32px, 6vw, 64px);
+  margin-bottom: 10px;
 }
 
+/* Mjukare underrubrik */
 .intro p {
-  font-size: var(--fz-lg);
-  font-weight: 400;
-  color: var(--clr-text);
-  line-height: var(--lh-base);
+  color: var(--clr-text-muted);
+  font-size: clamp(16px, 1.6vw, 20px);
 }
 
-/*──────────────────────────────────────────────────────────────────────────
-  Chat-wrapper: centrering & utseende
-──────────────────────────────────────────────────────────────────────────*/
+/* ─────────────────────────────────────────────────────────
+   Chat-wrapper: stor, centrerad, luftig
+──────────────────────────────────────────────────────────*/
 .chat-container {
-  display: flex;
-  justify-content: center;
-  padding-top: var(--space-lg);
-  position: relative;
-  z-index: 1;
+  width: 100%;
+  padding: 0 var(--space-4) var(--space-12);
 }
 
 #chat-wrapper {
-  margin: var(--space-lg) auto;
-  width: 100%;
-  max-width: 620px;
+  width: min(940px, 92vw);              /* bredare som Lovable */
+  margin: 0 auto;
   background: var(--clr-white);
-  border: 2px solid var(--clr-primary);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 12px 28px rgba(0,0,0,0.05);
-
+  border: 1px solid rgba(17,17,17,.08);
+  border-radius: 24px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.06);
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  position: relative;
-  z-index: 2;
 }
 
-/*──────────────────────────────────────────────────────────────────────────
-  Meddelandelista
-──────────────────────────────────────────────────────────────────────────*/
+/* I “landing”-läget vill vi att input känns som huvudkomponent */
 #messages {
-  display: flex;                   /* viktigast: flex + kolumn */
+  display: flex;
   flex-direction: column;
-  gap: var(--space-md);
-  flex: 1;                         /* tar resterande höjd */
-  padding: var(--space-md);
-  overflow-y: auto;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-4) 0;
   max-height: 340px;
+  overflow-y: auto;
   background: var(--clr-white);
 }
 
-/*──────────────────────────────────────────────────────────────────────────
-  Chattbubblor
-──────────────────────────────────────────────────────────────────────────*/
+/* Bubblor */
 .message {
-  max-width: 80%;
-  padding: var(--space-sm) var(--space-md);
-  border-radius: var(--radius-lg);
-  font-size: var(--fz-base);
-  line-height: var(--lh-base);
-  white-space: pre-wrap;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-  opacity: 0;
-  transform: translateY(10px);
-  animation: fadeIn .35s ease forwards;
+  max-width: 78%;
+  padding: 10px 14px;
+  border-radius: 18px;
+  font-size: 16px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  opacity: 0; transform: translateY(8px);
+  animation: fadeIn .3s ease forwards;
 }
+@keyframes fadeIn { to { opacity: 1; transform: translateY(0); } }
 
-@keyframes fadeIn {
-  to { opacity: 1; transform: translateY(0); }
-}
+.message.user { align-self: flex-end; background: #fff; border: 1px solid rgba(0,0,0,.06); }
+.message.bot  { align-self: flex-start; background: #FFF6BF; }
 
-.message.user {
-  align-self: flex-end;
-  background: var(--clr-white);
-  border-bottom-right-radius: var(--radius-sm);
-}
-
-.message.bot {
-  align-self: flex-start;
-  background: var(--clr-primary-alt);
-  border-bottom-left-radius: var(--radius-sm);
-  display: flex;
-  gap: var(--space-sm);
-  align-items: flex-start;
-}
-
-.bot-avatar {
-  width: 30px;
-  height: 30px;
-  border-radius: var(--radius-pill);
-  background: var(--clr-primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--fz-base);
-  font-weight: 700;
-}
-
-/*──────────────────────────────────────────────────────────────────────────
-  Input-area: autosize + sticky
-──────────────────────────────────────────────────────────────────────────*/
+/* Input-area – stor, luftig, rundad */
 #input-area {
-  position: sticky;
-  bottom: 0;
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-4);
+  border-top: 1px solid rgba(17,17,17,.06);
   background: var(--clr-white);
-  padding: env(safe-area-inset-bottom) var(--space-md) var(--space-md);
-  box-shadow: 0 -2px 8px rgba(0,0,0,0.05);
-
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-  margin-top: auto;
 }
 
 textarea {
   flex: 1;
-  font-size: var(--fz-base);
-  padding: var(--space-sm) var(--space-md);
-  border: 1px solid var(--clr-primary);
-  border-radius: var(--radius-lg);
-  resize: none;
-  overflow: hidden;
-  line-height: var(--lh-base);
-  transition: border-color .2s;
+  font-size: 16px;
+  padding: 14px 16px;
+  border: 1px solid rgba(17,17,17,.12);
+  border-radius: 9999px;               /* Lovable-pill */
+  resize: none; overflow: hidden; line-height: 1.5;
+  transition: box-shadow .15s, border-color .15s;
+  background: #fff;
 }
-
 textarea:focus {
   outline: none;
-  border-color: var(--clr-primary-alt);
+  border-color: rgba(17,17,17,.18);
+  box-shadow: 0 0 0 4px rgba(255, 211, 78, .25);
 }
 
-/* Skicka-knapp */
+/* Skicka-knapp – rund, kompakt */
 #sendBtn {
+  height: 52px;
+  padding: 0 22px;
+  border: 0;
+  border-radius: 9999px;
   background: var(--clr-primary);
-  color: var(--clr-text);
-  border: none;
-  border-radius: var(--radius-lg);
-  padding: var(--space-sm) var(--space-lg);
-  font-size: var(--fz-lg);
+  color: #111;
+  font-weight: 700;
   cursor: pointer;
-  transition: background .2s;
-  height: 48px;
+  transition: transform .05s ease, filter .15s ease;
 }
+#sendBtn:hover { filter: brightness(0.98); }
+#sendBtn:active { transform: translateY(1px); }
 
-#sendBtn:hover {
-  background: var(--clr-primary-alt);
-}
-
-/*──────────────────────────────────────────────────────────────────────────
-  Alternativ-knappar (agentval etc)
-──────────────────────────────────────────────────────────────────────────*/
+/* Option-knappar (agentval etc) */
 .option-button {
-  background: var(--clr-primary-alt);
-  color: var(--clr-text);
+  background: #fff;
+  color: #111;
+  border: 1px solid rgba(17,17,17,.12);
+  border-radius: 9999px;
+  padding: 8px 14px;
   font-weight: 600;
-  border: 1px solid var(--clr-primary);
-  border-radius: var(--radius-pill);
-  padding: var(--space-sm) var(--space-md);
-  font-size: var(--fz-base);
   cursor: pointer;
-  transition: background .2s, transform .1s;
+  transition: background .15s, transform .05s, border-color .15s;
 }
+.option-button:hover { background: #fafafa; border-color: rgba(17,17,17,.2); }
 
-.option-button:hover {
-  background: var(--clr-primary);
-  transform: scale(1.02);
-}
-
-/*──────────────────────────────────────────────────────────────────────────
-  Responsive / Mobile-first breakpoints
-──────────────────────────────────────────────────────────────────────────*/
-@media (min-width: 640px) {
-  .intro h1 {
-    font-size: 3rem;
-  }
-  .intro p {
-    font-size: var(--fz-lg);
-  }
-  .brand-title {
-    font-size: 1.6rem;
-  }
-  .brand-logo {
-    width: 48px;
-    height: 48px;
-  }
-  #sendBtn {
-    height: 48px;
-    font-size: var(--fz-base);
-  }
+/* ─────────────────────────────────────────────────────────
+   Responsive
+──────────────────────────────────────────────────────────*/
+@media (max-width: 640px) {
+  .brand-logo { width: 36px; height: 36px; }
+  #chat-wrapper { width: min(100%, 94vw); border-radius: 18px; }
+  #sendBtn { height: 48px; padding: 0 18px; }
 }
