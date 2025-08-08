@@ -357,3 +357,6 @@ body > .chat-container {
   white-space:nowrap !important;
   text-overflow:ellipsis !important;
 }
+/* Harden layout */
+#input-area { display:block !important; }
+#input-area .chat-inner { width:100% !important; }
