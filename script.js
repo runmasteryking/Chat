@@ -54,16 +54,30 @@ window.addEventListener("DOMContentLoaded", () => {
     { key:"raceDistance", question:"What distance is the race?" }
   ];
 
-  // ── Helper: auto-resize textarea ───────────────────────────────────────────
-  function autoResizeTextarea() {
-    input.style.height = "auto";
-    input.style.height = input.scrollHeight + "px";
-    autoScroll();
+  // ── Helper: controlled auto-resize textarea ───────────────────────────────
+  const BASE_H = 44;   // single-line baseline height (matches CSS)
+  const MAX_H  = 160;  // max auto-expand height
+
+  function updateTextareaLayout() {
+    const hasText = input.value.trim().length > 0;
+
+    if (!hasText) {
+      // Empty: keep one line, don't wrap placeholder
+      input.style.whiteSpace = "nowrap";
+      input.style.height = BASE_H + "px";
+    } else {
+      // With text: allow wrapping and grow up to MAX_H
+      input.style.whiteSpace = "normal";
+      input.style.height = "auto";
+      input.style.height = Math.min(input.scrollHeight, MAX_H) + "px";
+    }
   }
-  input.addEventListener("input", autoResizeTextarea);
+
+  // Re-layout on input & focus
+  input.addEventListener("input", updateTextareaLayout);
   input.addEventListener("focus", () => {
-    // scrolla så input är synligt vid mobil-tangentbord
-    setTimeout(() => autoScroll(), 300);
+    // ensure correct height after any late fonts/layout
+    setTimeout(updateTextareaLayout, 0);
   });
 
   // ── Authentication ────────────────────────────────────────────────────────
@@ -110,9 +124,9 @@ window.addEventListener("DOMContentLoaded", () => {
 
   function showChatUI() {
     chatWrapper.style.display = "flex";
-    messages.style.display   = "flex";
-    inputArea.style.display  = "flex";
-    autoResizeTextarea();
+    messages.style.display    = "flex";
+    inputArea.style.display   = "flex";
+    updateTextareaLayout(); // set baseline height/nowrap
   }
 
   // ── Chat flow ─────────────────────────────────────────────────────────────
@@ -136,7 +150,7 @@ window.addEventListener("DOMContentLoaded", () => {
       await persist("bot", profileQuestions[0].question);
       await summarize("bot", profileQuestions[0].question);
       input.value = "";
-      autoResizeTextarea();
+      updateTextareaLayout();
       return;
     }
 
@@ -145,7 +159,7 @@ window.addEventListener("DOMContentLoaded", () => {
     await persist("user", text);
     await summarize("user", text);
     input.value = "";
-    autoResizeTextarea();
+    updateTextareaLayout();
 
     // Bot thinking indicator
     const thinking = createMessage("bot", "…", "thinking");
@@ -174,7 +188,7 @@ window.addEventListener("DOMContentLoaded", () => {
   async function summarize(sender, text) {
     const uref = doc(db, "users", currentUser.uid);
     const snap = await getDoc(uref);
-    const existing = snap.data().profile.conversationSummary || "";
+    const existing = snap.data()?.profile?.conversationSummary || "";
     const res = await fetch("/.netlify/functions/summarize-gpt", {
       method: "POST",
       headers: {"Content-Type":"application/json"},
@@ -193,7 +207,7 @@ window.addEventListener("DOMContentLoaded", () => {
   async function generateBotReply(userText) {
     const uref = doc(db, "users", currentUser.uid);
     const snap = await getDoc(uref);
-    const summary = snap.data().profile.conversationSummary || "";
+    const summary = snap.data()?.profile?.conversationSummary || "";
     const msgsCol = collection(db, "users", currentUser.uid, "messages");
     const q = query(msgsCol, orderBy("timestamp","desc"), limit(5));
     const dsnap = await getDocs(q);
