@@ -258,3 +258,10 @@ function scrollToBottomIfNeeded() {
 const messagesEl = document.getElementById("messages");
 const observer = new MutationObserver(scrollToBottomIfNeeded);
 observer.observe(messagesEl, { childList: true });
+// Gör hela input-området klickbart för att börja skriva
+document.getElementById("input-area").addEventListener("click", function(e) {
+  const textarea = document.getElementById("userInput");
+  if (e.target !== textarea) {
+    textarea.focus();
+  }
+});
