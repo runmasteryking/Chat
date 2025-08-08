@@ -56,12 +56,6 @@ window.addEventListener("DOMContentLoaded", () => {
     { key:"raceDistance",   question:"What distance is the race?" }
   ];
 
-  function checkProfileCompletion() {
-    const requiredKeys = ["name", "gender", "birthYear", "level", "weeklySessions", "current5kTime"];
-    const hasAll = requiredKeys.every(key => userProfileState[key] !== null && userProfileState[key] !== "");
-    userProfileState.profileComplete = hasAll;
-  }
-
   // ── Auth
   loginBtn.addEventListener("click", async () => {
     try {
@@ -89,15 +83,19 @@ window.addEventListener("DOMContentLoaded", () => {
     const snap = await getDoc(ref);
     if (snap.exists() && snap.data().profile) {
       Object.assign(userProfileState, snap.data().profile);
+
+      // ✅ Kontrollera om profilen är komplett
+      const requiredFields = ["name", "gender", "birthYear", "level", "weeklySessions", "current5kTime"];
+      const missing = requiredFields.filter(f => !userProfileState[f]);
+      userProfileState.profileComplete = missing.length === 0;
     }
-    checkProfileCompletion();
     await setDoc(ref, { lastLogin: serverTimestamp(), profile: userProfileState }, { merge: true });
   }
 
   function showUserInfo(u) {
     loginBtn.style.display = "none";
     userInfo.style.display = "flex";
-    userName.textContent = u.displayName || "Runner";
+    userName.textContent = u.displayName || userProfileState.name || "Runner";
   }
 
   function showChatUI() {
@@ -113,12 +111,6 @@ window.addEventListener("DOMContentLoaded", () => {
       sendMessage();
     }
   });
-  window.handleKey = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  };
   inputArea.addEventListener("click", e => { if (e.target !== input) input.focus(); });
   chatWrapper.addEventListener("click", e => {
     const isClickable = e.target.closest(".fab, .chip, .message");
@@ -151,13 +143,17 @@ window.addEventListener("DOMContentLoaded", () => {
       summarize("user", text).catch(e => console.warn("summarize user err:", e));
       input.value = "";
 
+      // 🔹 Fråga bara om det saknas fält i profilen
       if (!userProfileState.profileComplete) {
-        const nextQ = profileQuestions.find(q => !userProfileState[q.key]);
-        if (nextQ) {
-          appendBot(nextQ.question);
-          await persist("bot", nextQ.question);
-          summarize("bot", nextQ.question).catch(e => console.warn("summarize bot err:", e));
+        const missingField = profileQuestions.find(q => !userProfileState[q.key]);
+        if (missingField) {
+          appendBot(missingField.question);
+          await persist("bot", missingField.question);
+          summarize("bot", missingField.question).catch(e => console.warn("summarize bot err:", e));
           return;
+        } else {
+          userProfileState.profileComplete = true;
+          await setDoc(doc(db, "users", currentUser.uid), { profile: userProfileState }, { merge: true });
         }
       }
 
@@ -170,7 +166,6 @@ window.addEventListener("DOMContentLoaded", () => {
       appendBot(reply);
       await persist("bot", reply);
       summarize("bot", reply).catch(e => console.warn("summarize bot err:", e));
-
     } catch (err) {
       console.error(err);
       appendBot(`⚠️ ${err.message || "Something went wrong."}`);
@@ -243,7 +238,6 @@ window.addEventListener("DOMContentLoaded", () => {
     const data = await res.json();
     if (data.profileUpdate && Object.keys(data.profileUpdate).length) {
       Object.assign(userProfileState, data.profileUpdate);
-      checkProfileCompletion();
       await setDoc(uref, { profile: userProfileState, updatedAt: serverTimestamp() }, { merge: true });
     }
     return data.reply || "";
