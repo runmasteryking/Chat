@@ -18,7 +18,6 @@ import {
 } from "./firebase-config.js";
 
 window.addEventListener("DOMContentLoaded", () => {
-  // ── DOM
   const loginBtn    = document.getElementById("loginBtn");
   const chatWrapper = document.getElementById("chat-wrapper");
   const intro       = document.getElementById("intro");
@@ -29,13 +28,12 @@ window.addEventListener("DOMContentLoaded", () => {
   const userInfo    = document.getElementById("userInfo");
   const userName    = document.getElementById("userName");
 
-  // ── State
   let currentUser = null;
   let firstMessageSent = false;
   let isSending = false;
   let lastSendAt = 0;
 
-  let userProfileState = {
+  const userProfileState = {
     name: null, language: "swedish", gender: null, birthYear: null,
     level: null, weeklySessions: null, current5kTime: null,
     injuryNotes: null, raceComingUp: null, raceDate: null,
@@ -81,22 +79,16 @@ window.addEventListener("DOMContentLoaded", () => {
   async function loadProfile(uid) {
     const ref = doc(db, "users", uid);
     const snap = await getDoc(ref);
-    if (snap.exists()) {
-      const data = snap.data();
-      // slå ihop root och profile-map
-      userProfileState = { ...userProfileState, ...data.profile };
-      if (!userProfileState.name && data.name) {
-        userProfileState.name = data.name;
-      }
+    if (snap.exists() && snap.data().profile) {
+      Object.assign(userProfileState, snap.data().profile);
     }
-    // uppdatera senaste login
     await setDoc(ref, { lastLogin: serverTimestamp(), profile: userProfileState }, { merge: true });
   }
 
   function showUserInfo(u) {
     loginBtn.style.display = "none";
     userInfo.style.display = "flex";
-    userName.textContent = u.displayName || userProfileState.name || "Runner";
+    userName.textContent = u.displayName || "Runner";
   }
 
   function showChatUI() {
@@ -113,6 +105,9 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
   sendBtn.addEventListener("click", sendMessage);
+
+  const mo = new MutationObserver(() => autoScrollIfNeeded(true));
+  mo.observe(messages, { childList: true });
 
   async function sendMessage() {
     const now = Date.now();
@@ -135,22 +130,18 @@ window.addEventListener("DOMContentLoaded", () => {
       summarize("user", text).catch(e => console.warn("summarize user err:", e));
       input.value = "";
 
-      // om profilen är ofullständig, fråga nästa fråga
-      if (!userProfileState.profileComplete) {
-        const nextQ = getNextProfileQuestion();
-        if (nextQ) {
-          appendBot(nextQ.question);
-          await persist("bot", nextQ.question);
-          summarize("bot", nextQ.question).catch(e => console.warn("summarize bot err:", e));
-          return;
-        } else {
-          userProfileState.profileComplete = true;
-          await saveProfile();
-        }
+      // Kolla om profil saknar något innan AI-svar
+      const nextMissing = profileQuestions.find(q => !userProfileState[q.key]);
+      if (nextMissing) {
+        appendBot(nextMissing.question);
+        await persist("bot", nextMissing.question);
+        summarize("bot", nextMissing.question).catch(e => console.warn("summarize bot err:", e));
+        return;
       }
 
       const thinking = createMessage("bot", "…", "thinking");
       messages.appendChild(thinking);
+      autoScrollIfNeeded(true);
 
       const reply = await generateBotReply(text);
       thinking.remove();
@@ -165,15 +156,7 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  function getNextProfileQuestion() {
-    for (const q of profileQuestions) {
-      if (!userProfileState[q.key]) {
-        return q;
-      }
-    }
-    return null;
-  }
-
+  // ── Persistence & Summary
   async function persist(sender, text) {
     if (!currentUser) return;
     const id = Date.now().toString();
@@ -184,33 +167,35 @@ window.addEventListener("DOMContentLoaded", () => {
   async function summarize(sender, text) {
     if (!currentUser) return;
     const uref = doc(db, "users", currentUser.uid);
-    const existing = userProfileState.conversationSummary || "";
+    const snap = await getDoc(uref);
+    const existing = snap.data()?.profile?.conversationSummary || "";
 
     const res = await fetch("/.netlify/functions/summarize-gpt", {
       method: "POST",
       headers: {"Content-Type":"application/json"},
       body: JSON.stringify({
+        uid: currentUser.uid,
         prompt: `Existing summary:\n${existing}\n\n${sender}: ${text}\n\nUpdate summary (<=200 words):`
       })
     });
 
     if (!res.ok) {
-      console.warn("summarize-gpt failed:", res.status);
+      const t = await res.text();
+      console.warn("summarize-gpt failed:", res.status, t);
       return;
     }
 
     const { summary } = await res.json();
     userProfileState.conversationSummary = summary;
-    await saveProfile();
+    await setDoc(uref, { profile: { ...userProfileState, conversationSummary: summary } }, { merge: true });
   }
 
-  async function saveProfile() {
-    if (!currentUser) return;
-    const uref = doc(db, "users", currentUser.uid);
-    await setDoc(uref, { profile: userProfileState, updatedAt: serverTimestamp() }, { merge: true });
-  }
-
+  // ── AI
   async function generateBotReply(userText) {
+    const uref = doc(db, "users", currentUser.uid);
+    const snap = await getDoc(uref);
+    const summary = snap.data()?.profile?.conversationSummary || "";
+
     const msgsCol = collection(db, "users", currentUser.uid, "messages");
     const qy = query(msgsCol, orderBy("timestamp","desc"), limit(5));
     const ds = await getDocs(qy);
@@ -220,7 +205,8 @@ window.addEventListener("DOMContentLoaded", () => {
       method: "POST",
       headers: {"Content-Type":"application/json"},
       body: JSON.stringify({
-        systemSummary:  userProfileState.conversationSummary,
+        uid: currentUser.uid,
+        systemSummary:  summary,
         recentMessages: recent,
         message:        userText,
         userProfile:    { ...userProfileState, name: userProfileState.name || currentUser.displayName }
@@ -229,13 +215,14 @@ window.addEventListener("DOMContentLoaded", () => {
 
     if (!res.ok) {
       const text = await res.text();
+      console.error("ask-gpt failed:", res.status, text);
       throw new Error(`ask-gpt ${res.status}: ${text}`);
     }
 
     const data = await res.json();
     if (data.profileUpdate && Object.keys(data.profileUpdate).length) {
       Object.assign(userProfileState, data.profileUpdate);
-      await saveProfile();
+      await setDoc(uref, { profile: userProfileState, updatedAt: serverTimestamp() }, { merge: true });
     }
     return data.reply || "";
   }
@@ -249,8 +236,20 @@ window.addEventListener("DOMContentLoaded", () => {
   }
   function appendUser(text){
     messages.appendChild(createMessage("user", text));
+    autoScrollIfNeeded(true);
   }
   function appendBot(text){
     messages.appendChild(createMessage("bot", text));
+    autoScrollIfNeeded(true);
+  }
+  function autoScrollIfNeeded(smooth = false){
+    const atBottom = messages.scrollHeight - messages.scrollTop <= messages.clientHeight + 10;
+    if (atBottom) {
+      if (smooth && "scrollTo" in messages) {
+        messages.scrollTo({ top: messages.scrollHeight, behavior: "smooth" });
+      } else {
+        messages.scrollTop = messages.scrollHeight;
+      }
+    }
   }
 });
