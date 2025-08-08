@@ -18,7 +18,7 @@ import {
 } from "./firebase-config.js";
 
 window.addEventListener("DOMContentLoaded", () => {
-  // ── DOM Elements ──────────────────────────────────────────────────────────
+  // ── DOM
   const loginBtn    = document.getElementById("loginBtn");
   const chatWrapper = document.getElementById("chat-wrapper");
   const intro       = document.getElementById("intro");
@@ -29,16 +29,17 @@ window.addEventListener("DOMContentLoaded", () => {
   const userInfo    = document.getElementById("userInfo");
   const userName    = document.getElementById("userName");
 
-  // ── State ─────────────────────────────────────────────────────────────────
+  // ── State
   let currentUser = null;
   let firstMessageSent = false;
   let isSending = false;
+  let lastSendAt = 0; // enkel debounce
 
   const userProfileState = {
-    name: null, language: null, gender: null, birthYear: null,
+    name: null, language: "swedish", gender: null, birthYear: null,
     level: null, weeklySessions: null, current5kTime: null,
     injuryNotes: null, raceComingUp: null, raceDate: null,
-    raceDistance: null, agent: null, profileComplete: false,
+    raceDistance: null, agent: "coach", profileComplete: false,
     conversationSummary: ""
   };
 
@@ -55,7 +56,7 @@ window.addEventListener("DOMContentLoaded", () => {
     { key:"raceDistance",   question:"What distance is the race?" }
   ];
 
-  // ── Authentication ────────────────────────────────────────────────────────
+  // ── Auth
   loginBtn.addEventListener("click", async () => {
     try {
       const { user } = await signInWithPopup(auth, provider);
@@ -83,10 +84,7 @@ window.addEventListener("DOMContentLoaded", () => {
     if (snap.exists() && snap.data().profile) {
       Object.assign(userProfileState, snap.data().profile);
     }
-    await setDoc(ref, {
-      lastLogin: serverTimestamp(),
-      profile: userProfileState
-    }, { merge: true });
+    await setDoc(ref, { lastLogin: serverTimestamp(), profile: userProfileState }, { merge: true });
   }
 
   function showUserInfo(u) {
@@ -98,41 +96,66 @@ window.addEventListener("DOMContentLoaded", () => {
   function showChatUI() {
     chatWrapper.style.display = "flex";
     messages.style.display    = "flex";
-    inputArea.style.display   = "block";
+    inputArea.style.display   = "block"; // håll layouten stabil
   }
 
-  // ── Chat flow ─────────────────────────────────────────────────────────────
-  sendBtn.addEventListener("click", sendMessage);
-
+  // ── Composer UX
+  // Enter = skicka (Shift+Enter = ny rad)
   input.addEventListener("keydown", e => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
     }
   });
+  // Stöd för ev. kvarvarande inline-attribut i HTML
+  window.handleKey = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
 
-  // Klick varsomhelst i input-området för att börja skriva
+  // Klicka var som helst i input-ytan (eller tom del av kortet) för fokus
   inputArea.addEventListener("click", e => {
     if (e.target !== input) input.focus();
   });
+  chatWrapper.addEventListener("click", e => {
+    const isClickable = e.target.closest(".fab, .chip, .message");
+    if (!isClickable) input.focus();
+  });
+
+  // Håll dig automatiskt längst ner när nya bubblor dyker upp (om du redan är där)
+  const mo = new MutationObserver(() => autoScrollIfNeeded(true));
+  mo.observe(messages, { childList: true });
+
+  // ── Skicka
+  sendBtn.addEventListener("click", sendMessage);
 
   async function sendMessage() {
-    if (isSending) return;
+    // Debounce + guard
+    const now = Date.now();
+    if (isSending || now - lastSendAt < 350) return;
+    lastSendAt = now;
+
     const text = input.value.trim();
     if (!text) return;
-    isSending = true;
 
+    isSending = true;
     try {
       const isFirst = !firstMessageSent;
-      firstMessageSent = true; // markerar första meddelandet som skickat
+      if (isFirst) {
+        // Dölj hero-kopian EN gång när första riktiga meddelandet går iväg
+        intro.style.display = "none";
+        firstMessageSent = true;
+      }
 
-      // Lägg alltid till användarens meddelande direkt
+      // 1) Visa användarens meddelande direkt
       appendUser(text);
       await persist("user", text);
       await summarize("user", text);
       input.value = "";
 
-      // Onboarding vid första meddelandet om profil ej komplett
+      // 2) Onboarding: ställ första profilfrågan en gång om profilen inte är klar
       if (!userProfileState.profileComplete && isFirst) {
         const q = profileQuestions[0].question;
         appendBot(q);
@@ -141,10 +164,10 @@ window.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // Normal AI-svar
+      // 3) Normal AI-slinga
       const thinking = createMessage("bot", "…", "thinking");
       messages.appendChild(thinking);
-      autoScrollIfNeeded();
+      autoScrollIfNeeded(true);
 
       const reply = await generateBotReply(text);
       thinking.remove();
@@ -159,10 +182,11 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // ── Persistence & Summary ─────────────────────────────────────────────────
+  // ── Persistence & Summary
   async function persist(sender, text) {
     if (!currentUser) return;
-    const ref = doc(db, "users", currentUser.uid, "messages", Date.now().toString());
+    const id = Date.now().toString();
+    const ref = doc(db, "users", currentUser.uid, "messages", id);
     await setDoc(ref, { sender, text, timestamp: serverTimestamp() });
   }
 
@@ -183,17 +207,16 @@ window.addEventListener("DOMContentLoaded", () => {
     await setDoc(uref, { profile: { conversationSummary: summary } }, { merge: true });
   }
 
-  // ── AI Call ────────────────────────────────────────────────────────────────
+  // ── AI
   async function generateBotReply(userText) {
     const uref = doc(db, "users", currentUser.uid);
     const snap = await getDoc(uref);
     const summary = snap.data()?.profile?.conversationSummary || "";
 
     const msgsCol = collection(db, "users", currentUser.uid, "messages");
-    const q = query(msgsCol, orderBy("timestamp","desc"), limit(5));
-    const ds = await getDocs(q);
-    const recent = ds.docs.map(d => `${d.data().sender}: ${d.data().text}`)
-                         .reverse().join("\n");
+    const qy = query(msgsCol, orderBy("timestamp","desc"), limit(5));
+    const ds = await getDocs(qy);
+    const recent = ds.docs.map(d => `${d.data().sender}: ${d.data().text}`).reverse().join("\n");
 
     const res = await fetch("/.netlify/functions/ask-gpt", {
       method: "POST",
@@ -208,7 +231,6 @@ window.addEventListener("DOMContentLoaded", () => {
     if (!res.ok) throw new Error(`GPT error ${res.status}`);
 
     const data = await res.json();
-
     if (data.profileUpdate && Object.keys(data.profileUpdate).length) {
       Object.assign(userProfileState, data.profileUpdate);
       await setDoc(uref, { profile: userProfileState, updatedAt: serverTimestamp() }, { merge: true });
@@ -216,27 +238,31 @@ window.addEventListener("DOMContentLoaded", () => {
     return data.reply || "";
   }
 
-  // ── Rendering Helpers ─────────────────────────────────────────────────────
+  // ── Render helpers
   function createMessage(type, text, extraClass="") {
     const div = document.createElement("div");
     div.className = `message ${type}` + (extraClass ? ` ${extraClass}` : "");
     div.textContent = text;
     return div;
   }
-
   function appendUser(text){
     messages.appendChild(createMessage("user", text));
-    autoScrollIfNeeded();
+    autoScrollIfNeeded(true);
   }
   function appendBot(text){
     messages.appendChild(createMessage("bot", text));
-    autoScrollIfNeeded();
+    autoScrollIfNeeded(true);
   }
 
-  function autoScrollIfNeeded(){
+  // Auto-scroll bara om användaren redan är “nära botten”
+  function autoScrollIfNeeded(smooth = false){
     const atBottom = messages.scrollHeight - messages.scrollTop <= messages.clientHeight + 10;
     if (atBottom) {
-      messages.scrollTop = messages.scrollHeight;
+      if (smooth && "scrollTo" in messages) {
+        messages.scrollTo({ top: messages.scrollHeight, behavior: "smooth" });
+      } else {
+        messages.scrollTop = messages.scrollHeight;
+      }
     }
   }
 });
