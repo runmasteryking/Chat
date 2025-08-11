@@ -28,12 +28,22 @@ window.addEventListener("DOMContentLoaded", () => {
   const sendBtn     = document.getElementById("sendBtn");
   const userInfo    = document.getElementById("userInfo");
   const userName    = document.getElementById("userName");
+  const newThreadBtn= document.getElementById("newThreadBtn");
 
   // ── State
   let currentUser = null;
   let firstMessageSent = false;
   let isSending = false;
   let lastSendAt = 0;
+
+  // Debounce state for summaries
+  let summarizeTimer = null;
+  let summarizeDirty = false;
+  let summarizeQueueCount = 0;
+  let lastSummaryPayload = null;  // { sender, text }
+
+  const SUMMARY_IDLE_MS = 12000;  // 12s inaktivitet
+  const SUMMARY_BATCH_N = 3;      // eller var 3:e meddelande
 
   const userProfileState = {
     name: null, language: "swedish", gender: null, birthYear: null,
@@ -104,6 +114,32 @@ window.addEventListener("DOMContentLoaded", () => {
     inputArea.style.display   = "block";
   }
 
+  // ── New Thread
+  if (newThreadBtn) {
+    newThreadBtn.addEventListener("click", async () => {
+      try {
+        // Nollställ lokalt
+        messages.innerHTML = "";
+        firstMessageSent = false;
+
+        // Visa intro igen (valfritt: ta bort om du vill behålla den dold)
+        if (intro) intro.classList.remove("intro-hidden");
+
+        // Nollställ summary i state + Firestore
+        userProfileState.conversationSummary = "";
+        if (currentUser) {
+          const uref = doc(db, "users", currentUser.uid);
+          await setDoc(uref, { profile: { conversationSummary: "" } }, { merge: true });
+        }
+
+        appendBot("New conversation started. How can I help you today?");
+      } catch (e) {
+        console.error("newThread error:", e);
+        appendBot("⚠️ Could not start a new conversation. Please try again.");
+      }
+    });
+  }
+
   // ── Composer UX
   input.addEventListener("keydown", e => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -140,7 +176,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
       appendUser(text);
       await persist("user", text);
-      summarize("user", text).catch(e => console.warn("summarize user err:", e));
+      queueSummarize("user", text); // debounced
       input.value = "";
 
       // 🔹 Fråga bara om det saknas fält i profilen
@@ -149,7 +185,7 @@ window.addEventListener("DOMContentLoaded", () => {
         if (missingField) {
           appendBot(missingField.question);
           await persist("bot", missingField.question);
-          summarize("bot", missingField.question).catch(e => console.warn("summarize bot err:", e));
+          queueSummarize("bot", missingField.question); // debounced
           return;
         } else {
           userProfileState.profileComplete = true;
@@ -165,7 +201,7 @@ window.addEventListener("DOMContentLoaded", () => {
       thinking.remove();
       appendBot(reply);
       await persist("bot", reply);
-      summarize("bot", reply).catch(e => console.warn("summarize bot err:", e));
+      queueSummarize("bot", reply); // debounced
     } catch (err) {
       console.error(err);
       appendBot(`⚠️ ${err.message || "Something went wrong."}`);
@@ -179,32 +215,69 @@ window.addEventListener("DOMContentLoaded", () => {
     if (!currentUser) return;
     const id = Date.now().toString();
     const ref = doc(db, "users", currentUser.uid, "messages", id);
-    await setDoc(ref, { sender, text, timestamp: serverTimestamp() });
+    await setDoc(ref, {
+      sender,
+      text,
+      timestamp: serverTimestamp(),
+      clientAt: Date.now() // <— stabil lokal tid
+    });
   }
 
-  async function summarize(sender, text) {
-    if (!currentUser) return;
-    const uref = doc(db, "users", currentUser.uid);
-    const snap = await getDoc(uref);
-    const existing = snap.data()?.profile?.conversationSummary || "";
+  // Debounced summarize wrapper
+  function queueSummarize(sender, text) {
+    summarizeDirty = true;
+    summarizeQueueCount += 1;
+    lastSummaryPayload = { sender, text };
 
-    const res = await fetch("/.netlify/functions/summarize-gpt", {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({
-        prompt: `Existing summary:\n${existing}\n\n${sender}: ${text}\n\nUpdate summary (<=200 words):`
-      })
-    });
-
-    if (!res.ok) {
-      const t = await res.text();
-      console.warn("summarize-gpt failed:", res.status, t);
+    if (summarizeTimer) clearTimeout(summarizeTimer);
+    // Triggera direkt om vi nått batch-gräns
+    if (summarizeQueueCount >= SUMMARY_BATCH_N) {
+      summarizeNow().catch(e => console.warn("summarizeNow err:", e));
       return;
     }
+    // Annars vänta på inaktivitet
+    summarizeTimer = setTimeout(() => {
+      summarizeNow().catch(e => console.warn("summarizeNow err:", e));
+    }, SUMMARY_IDLE_MS);
+  }
 
-    const { summary } = await res.json();
-    userProfileState.conversationSummary = summary;
-    await setDoc(uref, { profile: { conversationSummary: summary } }, { merge: true });
+  async function summarizeNow() {
+    if (!currentUser || !summarizeDirty || !lastSummaryPayload) return;
+    summarizeDirty = false;
+    summarizeQueueCount = 0;
+    if (summarizeTimer) {
+      clearTimeout(summarizeTimer);
+      summarizeTimer = null;
+    }
+
+    const { sender, text } = lastSummaryPayload;
+    lastSummaryPayload = null;
+
+    try {
+      const uref = doc(db, "users", currentUser.uid);
+      const snap = await getDoc(uref);
+      const existing = snap.data()?.profile?.conversationSummary || "";
+
+      const res = await fetch("/.netlify/functions/summarize-gpt", {
+        method: "POST",
+        headers: {"Content-Type":"application/json"},
+        body: JSON.stringify({
+          prompt: `Existing summary:\n${existing}\n\n${sender}: ${text}\n\nUpdate summary (<=200 words):`
+        })
+      });
+
+      if (!res.ok) {
+        const t = await res.text();
+        console.warn("summarize-gpt failed:", res.status, t);
+        return;
+      }
+
+      const { summary } = await res.json();
+      userProfileState.conversationSummary = summary;
+      await setDoc(uref, { profile: { conversationSummary: summary } }, { merge: true });
+    } catch (e) {
+      console.warn("summarizeNow failed:", e);
+    }
   }
 
   // ── AI
@@ -213,10 +286,25 @@ window.addEventListener("DOMContentLoaded", () => {
     const snap = await getDoc(uref);
     const summary = snap.data()?.profile?.conversationSummary || "";
 
+    // Hämta senaste meddelanden – sortera robust med fallback till clientAt
     const msgsCol = collection(db, "users", currentUser.uid, "messages");
-    const qy = query(msgsCol, orderBy("timestamp","desc"), limit(5));
+    const qy = query(msgsCol, orderBy("timestamp","desc"), limit(20));
     const ds = await getDocs(qy);
-    const recent = ds.docs.map(d => `${d.data().sender}: ${d.data().text}`).reverse().join("\n");
+
+    // Sortera lokalt: primärt serverTimestamp (kan vara null), sekundärt clientAt
+    const sorted = ds.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => {
+        const ta = a.timestamp?.toMillis?.() || 0;
+        const tb = b.timestamp?.toMillis?.() || 0;
+        if (tb !== ta) return tb - ta;
+        const ca = typeof a.clientAt === "number" ? a.clientAt : 0;
+        const cb = typeof b.clientAt === "number" ? b.clientAt : 0;
+        return cb - ca;
+      });
+
+    const recentList = sorted.slice(0, 5).reverse(); // äldst först i sträng
+    const recent = recentList.map(d => `${d.sender}: ${d.text}`).join("\n");
 
     const res = await fetch("/.netlify/functions/ask-gpt", {
       method: "POST",
