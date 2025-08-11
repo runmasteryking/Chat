@@ -1,3 +1,7 @@
+/*
+ * LEGACY: Denna fil ersätts av modulerna under app/, controllers/ och ui/.
+ * Lämnas kvar tills vidare för referens. Använd index.html + app/bootstrap.js.
+ */
 // script.js
 
 import {
