@@ -1,5 +1,5 @@
 // ui/input.js
-import * as Events from '../controllers/events.js';
+import * as Router from '../app/router.js';
 
 let inputEl, sendBtn, newThreadBtn;
 
@@ -9,7 +9,7 @@ export function bindHandlers() {
   newThreadBtn = document.getElementById('newThreadBtn');
 
   if (!inputEl || !sendBtn) {
-    console.error('❌ Input or send button not found in DOM');
+    console.error('❗️ Input eller skicka-knapp hittades inte i DOM.');
     return;
   }
 
@@ -24,10 +24,12 @@ export function bindHandlers() {
     }
   });
 
-  // Ny tråd-knapp
+  // Ny tråd-knapp (använd nuvarande routerflöde)
   if (newThreadBtn) {
     newThreadBtn.addEventListener('click', () => {
-      Events.emit('THREAD:NEW');
+      // Skicka ett syntetiskt meddelande till routern om du vill trigga ny tråd,
+      // eller lämna det för nu om "ny tråd"-beteendet hanteras någon annanstans.
+      // Ex: Router.handleUserMessage('/newthread');
     });
   }
 }
@@ -35,11 +37,10 @@ export function bindHandlers() {
 function handleSend() {
   const text = inputEl.value.trim();
   if (!text) return;
-
-  // Skicka event till resten av systemet
-  Events.emit('USER:SEND', text);
-
-  // Töm fältet och fokusera igen
-  inputEl.value = '';
-  inputEl.focus();
+  try {
+    Router.handleUserMessage(text);
+  } finally {
+    inputEl.value = '';
+    inputEl.focus();
+  }
 }
