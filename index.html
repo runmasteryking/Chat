@@ -5,15 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Run Mastery</title>
 
-  <!-- Font -->
+  <!-- Fonts -->
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap" rel="stylesheet" />
 
-  <!-- Styles (cache-bust) -->
-  <link rel="stylesheet" href="styles.css?v=fix3" />
+  <!-- Styles (cache-bust optional) -->
+  <link rel="stylesheet" href="styles.css?v=fix4" />
+
+  <meta name="theme-color" content="#FFD34E" />
 </head>
 <body>
 
-  <!-- HEADER (transparent, ovanpå bakgrunden) -->
+  <!-- HEADER -->
   <header>
     <div class="brand">
       <img src="logo.png" alt="Run Mastery logo" class="brand-logo" />
@@ -28,13 +30,15 @@
     </div>
   </header>
 
-  <!-- HERO + CHAT -->
+  <!-- MAIN -->
   <main role="main">
+    <!-- HERO -->
     <section class="intro" id="intro" aria-labelledby="hero-title">
       <h1 id="hero-title">Your journey. Your pace.</h1>
       <p>Helping you find joy, strength and progress in every run</p>
     </section>
 
+    <!-- CHAT -->
     <section class="chat-container" aria-label="Conversation">
       <div id="chat-wrapper">
         <div id="messages" aria-live="polite" aria-atomic="false"></div>
@@ -74,8 +78,14 @@
     </section>
   </main>
 
+  <noscript>
+    Please enable JavaScript to use Run Mastery.
+  </noscript>
+
   <!-- SCRIPTS -->
-  <script type="module" src="firebase-config.js"></script>
-  <script type="module" src="script.js?v=fix3"></script>
+  <!-- Firebase config must load before our app code -->
+  <script type="module" src="/firebase-config.js"></script>
+  <!-- App entry point (nya strukturen) -->
+  <script type="module" src="/app/bootstrap.js?v=fix4"></script>
 </body>
 </html>
