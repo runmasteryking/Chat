@@ -9,7 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap" rel="stylesheet" />
 
   <!-- Styles (cache-bust optional) -->
-  <link rel="stylesheet" href="styles.css?v=fix4" />
+  <link rel="stylesheet" href="styles.css?v=fix5" />
 
   <meta name="theme-color" content="#FFD34E" />
 </head>
@@ -83,9 +83,13 @@
   </noscript>
 
   <!-- SCRIPTS -->
-  <!-- Firebase config must load before our app code -->
-  <script type="module" src="/firebase-config.js"></script>
-  <!-- App entry point (nya strukturen) -->
-  <script type="module" src="/app/bootstrap.js?v=fix4"></script>
+  <!-- Ladda appens entry point efter att DOM är redo -->
+  <script type="module">
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Ladda appens startpunkt
+      await import('./app/bootstrap.js?v=fix5');
+    });
+  </script>
+
 </body>
 </html>
