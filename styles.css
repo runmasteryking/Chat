@@ -295,3 +295,19 @@ header{
 #input-area .chat-inner{width:100% !important}
 #user-area,#userName,#loginBtn{white-space:nowrap !important}
 .intro-hidden { visibility: hidden; }
+/* ───────────────────────────────────────────────
+   Fullscreen-chat efter onboarding
+────────────────────────────────────────────── */
+#chat-wrapper.full-chat {
+  width: 100%;
+  max-width: 100%;
+  height: 90vh;
+  border-radius: 0;
+  box-shadow: none;
+  border: none;
+}
+
+#chat-wrapper.full-chat #messages {
+  max-height: calc(90vh - 120px);
+  min-height: calc(90vh - 120px);
+}
