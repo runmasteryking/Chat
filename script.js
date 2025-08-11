@@ -35,9 +35,7 @@ window.addEventListener("DOMContentLoaded", () => {
   let firstMessageSent = false;
   let isSending = false;
   let lastSendAt = 0;
-
-  // Vilket profilfält väntar vi svar på?
-  let pendingProfileKey = null;
+  let pendingProfileKey = null; // vilket profilfält väntar svar?
 
   // Debounce state för summaries
   let summarizeTimer = null;
@@ -96,6 +94,14 @@ window.addEventListener("DOMContentLoaded", () => {
 
     showUserInfo(user);
     showChatUI();
+
+    // Om profilen redan är komplett vid inloggning → hoppa onboarding
+    if (userProfileState.profileComplete) {
+      typeOutBotMessage(`Welcome back${userProfileState.name ? ", " + userProfileState.name : ""}! Ready to pick up where we left off?`);
+    } else {
+      // annars ställ första saknade frågan med chips
+      askNextMissingField();
+    }
   }
 
   async function loadProfile(uid) {
@@ -103,8 +109,6 @@ window.addEventListener("DOMContentLoaded", () => {
     const snap = await getDoc(ref);
     if (snap.exists() && snap.data().profile) {
       Object.assign(userProfileState, snap.data().profile);
-
-      // ✅ Kontrollera om profilen är komplett
       const requiredFields = ["name", "gender", "birthYear", "level", "weeklySessions", "current5kTime"];
       const missing = requiredFields.filter(f => !userProfileState[f]);
       userProfileState.profileComplete = missing.length === 0;
@@ -128,22 +132,18 @@ window.addEventListener("DOMContentLoaded", () => {
   if (newThreadBtn) {
     newThreadBtn.addEventListener("click", async () => {
       try {
-        // Nollställ lokalt
         messages.innerHTML = "";
         firstMessageSent = false;
         pendingProfileKey = null;
-
-        // Visa intro igen (valfritt)
         if (intro) intro.classList.remove("intro-hidden");
 
-        // Nollställ summary i state + Firestore
         userProfileState.conversationSummary = "";
         if (currentUser) {
           const uref = doc(db, "users", currentUser.uid);
           await setDoc(uref, { profile: { conversationSummary: "" } }, { merge: true });
         }
 
-        appendBot("New conversation started. How can I help you today?");
+        typeOutBotMessage("New conversation started. How can I help you today?");
       } catch (e) {
         console.error("newThread error:", e);
         appendBot("⚠️ Could not start a new conversation. Please try again.");
@@ -158,17 +158,16 @@ window.addEventListener("DOMContentLoaded", () => {
       sendMessage();
     }
   });
-  inputArea.addEventListener("click", e => { if (e.target !== input) input.focus(); });
-  chatWrapper.addEventListener("click", e => {
-    const isClickable = e.target.closest(".fab, .chip, .message");
-    if (!isClickable) input.focus();
-  });
-
-  const mo = new MutationObserver(() => autoScrollIfNeeded(true));
-  mo.observe(messages, { childList: true });
 
   sendBtn.addEventListener("click", sendMessage);
 
+  // Mutations -> auto-scroll
+  const mo = new MutationObserver(() => autoScrollIfNeeded(true));
+  mo.observe(messages, { childList: true, subtree: true });
+
+  // ─────────────────────────────────────────────────────
+  // MAIN SEND
+  // ─────────────────────────────────────────────────────
   async function sendMessage() {
     const now = Date.now();
     if (isSending || now - lastSendAt < 350) return;
@@ -179,15 +178,15 @@ window.addEventListener("DOMContentLoaded", () => {
 
     isSending = true;
     try {
-      const isFirst = !firstMessageSent;
-      if (isFirst) {
+      if (!firstMessageSent) {
         if (intro) intro.classList.add("intro-hidden");
         firstMessageSent = true;
       }
 
+      // Optimistisk render
       appendUser(text);
-      await persist("user", text);
-      queueSummarize("user", text); // debounced
+      const persistPromise = persist("user", text); // spara i bakgrunden
+      queueSummarize("user", text);
       input.value = "";
 
       // 🆕 Läs in färsk profil innan vi bestämmer nästa steg
@@ -198,50 +197,49 @@ window.addEventListener("DOMContentLoaded", () => {
         }
       }
 
-      // Om vi väntade på svar för ett specifikt profilfält – spara nu
+      // Context-aware: försök tolka profilinfo även om vi inte är i onboarding
+      const inferred = tryInferProfileUpdatesFromFreeText(text);
+      if (Object.keys(inferred).length) {
+        Object.assign(userProfileState, inferred);
+        await setDoc(doc(db, "users", currentUser.uid), { profile: userProfileState }, { merge: true });
+      }
+
+      // Om vi väntar på ett specifikt fält – spara det direkt
       if (pendingProfileKey) {
         const val = normalizeAnswer(pendingProfileKey, text);
         if (val !== null) {
           userProfileState[pendingProfileKey] = val;
-
-          // uppdatera display i UI om namnet sattes
-          if (pendingProfileKey === "name" && userName) {
-            userName.textContent = val;
-          }
-
+          if (pendingProfileKey === "name" && userName) userName.textContent = val;
           await setDoc(doc(db, "users", currentUser.uid), { profile: userProfileState }, { merge: true });
         }
         pendingProfileKey = null;
       }
 
-      // Kolla om profilen nu är komplett
-      const requiredFields = ["name", "gender", "birthYear", "level", "weeklySessions", "current5kTime"];
-      const missing = requiredFields.filter(f => !userProfileState[f]);
+      // Kolla nu om profilen är komplett
+      const required = ["name","gender","birthYear","level","weeklySessions","current5kTime"];
+      const missing = required.filter(f => !userProfileState[f]);
       userProfileState.profileComplete = missing.length === 0;
 
-      // Om inte komplett → fråga precis nästa sak som saknas
       if (!userProfileState.profileComplete) {
-        const nextField = profileQuestions.find(q => !userProfileState[q.key]);
-        if (nextField) {
-          pendingProfileKey = nextField.key;
-          appendBot(nextField.question);
-          await persist("bot", nextField.question);
-          queueSummarize("bot", nextField.question); // debounced
-          isSending = false;
-          return; // fråga en sak i taget
-        }
+        // Fråga exakt nästa som saknas + lägg chips
+        await askNextMissingField();
+        await persistPromise;
+        isSending = false;
+        return;
       }
 
-      // 🚀 Profil komplett → gå direkt till AI-svar (nästa fas)
-      const thinking = createMessage("bot", "…", "thinking");
-      messages.appendChild(thinking);
-      autoScrollIfNeeded(true);
+      // 🚀 Profil komplett → gå till AI-svar (simulerad streaming)
+      const typing = showTypingIndicator();
+      const fullReply = await generateBotReply(text);
+      typing.remove();
 
-      const reply = await generateBotReply(text);
-      thinking.remove();
-      appendBot(reply);
-      await persist("bot", reply);
-      queueSummarize("bot", reply); // debounced
+      // “streamad” utskrift
+      await typeOutBotMessage(fullReply);
+
+      // Spara AI-svaret i bakgrunden
+      persist("bot", fullReply);
+      queueSummarize("bot", fullReply);
+      await persistPromise;
     } catch (err) {
       console.error(err);
       appendBot(`⚠️ ${err.message || "Something went wrong."}`);
@@ -250,7 +248,106 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // ── Persistence & Summary
+  // ─────────────────────────────────────────────────────
+  // Onboarding helper – ställ nästa fråga + chips
+  // ─────────────────────────────────────────────────────
+  async function askNextMissingField() {
+    // säkerställ färsk profil igen
+    if (currentUser) {
+      const fresh = await getDoc(doc(db, "users", currentUser.uid));
+      if (fresh.exists() && fresh.data().profile) {
+        Object.assign(userProfileState, fresh.data().profile);
+      }
+    }
+    const required = ["name","gender","birthYear","level","weeklySessions","current5kTime"];
+    const nextField = profileQuestions.find(q => required.includes(q.key) && !userProfileState[q.key]);
+    if (!nextField) {
+      userProfileState.profileComplete = true;
+      await setDoc(doc(db, "users", currentUser.uid), { profile: userProfileState }, { merge: true });
+      return;
+    }
+
+    pendingProfileKey = nextField.key;
+
+    // Visa fråga + chips
+    const text = nextField.question;
+    const bubble = appendBot(text);
+    persist("bot", text);
+    queueSummarize("bot", text);
+
+    // lägg chips under bubble
+    const opts = getChipsForKey(nextField.key);
+    if (opts && opts.length) {
+      renderChips(bubble, opts, async (value) => {
+        // rendera användarsvar direkt
+        appendUser(value);
+        persist("user", value);
+
+        const val = normalizeAnswer(nextField.key, value);
+        if (val !== null) {
+          userProfileState[nextField.key] = val;
+          if (nextField.key === "name" && userName) userName.textContent = val;
+          await setDoc(doc(db, "users", currentUser.uid), { profile: userProfileState }, { merge: true });
+        }
+        pendingProfileKey = null;
+
+        // Kolla om fler saknas
+        const stillMissing = required.filter(f => !userProfileState[f]);
+        userProfileState.profileComplete = stillMissing.length === 0;
+
+        if (!userProfileState.profileComplete) {
+          await askNextMissingField(); // fråga nästa
+        } else {
+          // Klar onboarding → liten bekräftelse och in i nästa fas
+          await typeOutBotMessage("Thanks! I’ve got everything I need. Want me to sketch your next week of training?");
+        }
+      });
+    }
+  }
+
+  function getChipsForKey(key) {
+    switch (key) {
+      case "gender":
+        return ["Male","Female","Other"];
+      case "level":
+        return ["Beginner","Intermediate","Advanced"];
+      case "weeklySessions":
+        return ["2","3","4","5"];
+      case "current5kTime":
+        return ["19:30","22:00","25:00"];
+      default:
+        return null; // inga chips för name/birthYear som default
+    }
+  }
+
+  function renderChips(bubbleEl, options, onPick) {
+    const wrap = document.createElement("div");
+    wrap.className = "chip-row";
+    wrap.style.display = "flex";
+    wrap.style.flexWrap = "wrap";
+    wrap.style.gap = "6px";
+    wrap.style.marginTop = "8px";
+
+    options.forEach(opt => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "chip";
+      btn.textContent = opt;
+      btn.addEventListener("click", () => {
+        wrap.querySelectorAll("button").forEach(b => b.disabled = true);
+        onPick(opt);
+        wrap.remove();
+      });
+      wrap.appendChild(btn);
+    });
+
+    bubbleEl.appendChild(wrap);
+    autoScrollIfNeeded(true);
+  }
+
+  // ─────────────────────────────────────────────────────
+  // Persistence & Summary (optimistiskt)
+  // ─────────────────────────────────────────────────────
   async function persist(sender, text) {
     if (!currentUser) return;
     const id = Date.now().toString();
@@ -259,7 +356,7 @@ window.addEventListener("DOMContentLoaded", () => {
       sender,
       text,
       timestamp: serverTimestamp(),
-      clientAt: Date.now() // <— stabil lokal tid
+      clientAt: Date.now()
     });
   }
 
@@ -270,12 +367,10 @@ window.addEventListener("DOMContentLoaded", () => {
     lastSummaryPayload = { sender, text };
 
     if (summarizeTimer) clearTimeout(summarizeTimer);
-    // Triggera direkt om vi nått batch-gräns
     if (summarizeQueueCount >= SUMMARY_BATCH_N) {
       summarizeNow().catch(e => console.warn("summarizeNow err:", e));
       return;
     }
-    // Annars vänta på inaktivitet
     summarizeTimer = setTimeout(() => {
       summarizeNow().catch(e => console.warn("summarizeNow err:", e));
     }, SUMMARY_IDLE_MS);
@@ -320,7 +415,9 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // ── AI
+  // ─────────────────────────────────────────────────────
+  // AI (reply) – hämtar senaste kontext och kallar ask-gpt
+  // ─────────────────────────────────────────────────────
   async function generateBotReply(userText) {
     const uref = doc(db, "users", currentUser.uid);
     const snap = await getDoc(uref);
@@ -331,7 +428,6 @@ window.addEventListener("DOMContentLoaded", () => {
     const qy = query(msgsCol, orderBy("timestamp","desc"), limit(20));
     const ds = await getDocs(qy);
 
-    // Sortera lokalt: primärt serverTimestamp (kan vara null), sekundärt clientAt
     const sorted = ds.docs
       .map(d => ({ id: d.id, ...d.data() }))
       .sort((a, b) => {
@@ -343,7 +439,7 @@ window.addEventListener("DOMContentLoaded", () => {
         return cb - ca;
       });
 
-    const recentList = sorted.slice(0, 5).reverse(); // äldst först i sträng
+    const recentList = sorted.slice(0, 5).reverse();
     const recent = recentList.map(d => `${d.sender}: ${d.text}`).join("\n");
 
     const res = await fetch("/.netlify/functions/ask-gpt", {
@@ -371,7 +467,85 @@ window.addEventListener("DOMContentLoaded", () => {
     return data.reply || "";
   }
 
-  // ── Render helpers
+  // ─────────────────────────────────────────────────────
+  // UI helpers: typing indicator + “streamad” utskrift
+  // ─────────────────────────────────────────────────────
+  function showTypingIndicator() {
+    const el = document.createElement("div");
+    el.className = "message bot typing";
+    el.setAttribute("aria-live", "polite");
+    el.textContent = "AI is typing…";
+    messages.appendChild(el);
+    autoScrollIfNeeded(true);
+    return {
+      remove: () => el.remove()
+    };
+  }
+
+  async function typeOutBotMessage(fullText) {
+    // skapa tom bubble
+    const bubble = createMessage("bot", "");
+    messages.appendChild(bubble);
+    autoScrollIfNeeded(true);
+
+    // streamad utskrift (simulerad)
+    const minDelay = 8, maxDelay = 22; // känns “levande”
+    for (let i = 1; i <= fullText.length; i++) {
+      bubble.textContent = fullText.slice(0, i);
+      autoScrollIfNeeded(false);
+      await sleep(rand(minDelay, maxDelay));
+    }
+    return bubble;
+  }
+
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+  function rand(a, b) { return Math.floor(Math.random() * (b - a + 1)) + a; }
+
+  // ─────────────────────────────────────────────────────
+  // Context-aware profiluppdateringar från fritext
+  // ─────────────────────────────────────────────────────
+  function tryInferProfileUpdatesFromFreeText(s) {
+    const out = {};
+    if (!s || typeof s !== "string") return out;
+    const t = s.toLowerCase();
+
+    // 5k time
+    const timeRe = /\b(\d{1,2}):([0-5]\d)(?::([0-5]\d))?\b/; // MM:SS eller H:MM:SS
+    const m = t.match(timeRe);
+    if (m) {
+      const candidate = m[0];
+      const norm = normalizeAnswer("current5kTime", candidate);
+      if (norm) out.current5kTime = norm;
+    }
+
+    // weekly sessions
+    const wsRe = /\b(\d{1,2})\s*(pass|pass\/v|pass i veckan|runs|times per week|per week|veckor|vecka)\b/;
+    const w = t.match(wsRe);
+    if (w) {
+      const num = parseInt(w[1], 10);
+      const val = normalizeAnswer("weeklySessions", String(num));
+      if (val) out.weeklySessions = val;
+    }
+
+    // birth year
+    const byRe = /\b(19[4-9]\d|200\d|201[0-5])\b/;
+    const b = t.match(byRe);
+    if (b) {
+      const val = normalizeAnswer("birthYear", b[0]);
+      if (val) out.birthYear = val;
+    }
+
+    // gender keywords
+    if (/\b(male|man|kille|pojke|herr)\b/.test(t)) out.gender = "male";
+    else if (/\b(female|woman|tjej|flicka|dam)\b/.test(t)) out.gender = "female";
+    else if (/\b(other|non-binary|nb|annan)\b/.test(t)) out.gender = "other";
+
+    return out;
+  }
+
+  // ─────────────────────────────────────────────────────
+  // Render helpers
+  // ─────────────────────────────────────────────────────
   function createMessage(type, text, extraClass="") {
     const div = document.createElement("div");
     div.className = `message ${type}` + (extraClass ? ` ${extraClass}` : "");
@@ -379,12 +553,16 @@ window.addEventListener("DOMContentLoaded", () => {
     return div;
   }
   function appendUser(text){
-    messages.appendChild(createMessage("user", text));
+    const el = createMessage("user", text);
+    messages.appendChild(el);
     autoScrollIfNeeded(true);
+    return el;
   }
   function appendBot(text){
-    messages.appendChild(createMessage("bot", text));
+    const el = createMessage("bot", text);
+    messages.appendChild(el);
     autoScrollIfNeeded(true);
+    return el;
   }
 
   function autoScrollIfNeeded(smooth = false){
@@ -398,7 +576,9 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // ── Normaliserar profil-svar
+  // ─────────────────────────────────────────────────────
+  // Normaliserar profil-svar
+  // ─────────────────────────────────────────────────────
   function normalizeAnswer(key, raw) {
     const s = String(raw || "").trim();
 
@@ -441,7 +621,6 @@ window.addEventListener("DOMContentLoaded", () => {
         return null;
       }
 
-      // valfritt: fler fält (injuryNotes, raceComingUp etc)
       default:
         return s || null;
     }
