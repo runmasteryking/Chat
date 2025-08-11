@@ -97,7 +97,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
     // Om profilen redan är komplett vid inloggning → hoppa onboarding
     if (userProfileState.profileComplete) {
-      typeOutBotMessage(`Welcome back${userProfileState.name ? ", " + userProfileState.name : ""}! Ready to pick up where we left off?`);
+      typeOutBotMessage(`Welcome back! Ready to pick up where we left off?`);
     } else {
       // annars ställ första saknade frågan med chips
       askNextMissingField();
@@ -159,10 +159,16 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  inputArea.addEventListener("click", e => { if (e.target !== input) input.focus(); });
+  chatWrapper.addEventListener("click", e => {
+    const isClickable = e.target.closest(".fab, .chip, .message");
+    if (!isClickable) input.focus();
+  });
+
   sendBtn.addEventListener("click", sendMessage);
 
-  // Mutations -> auto-scroll
-  const mo = new MutationObserver(() => autoScrollIfNeeded(true));
+  // Mutations -> auto-scroll (vi följer alltid flödet)
+  const mo = new MutationObserver(() => scrollToBottom(true));
   mo.observe(messages, { childList: true, subtree: true });
 
   // ─────────────────────────────────────────────────────
@@ -229,11 +235,10 @@ window.addEventListener("DOMContentLoaded", () => {
       }
 
       // 🚀 Profil komplett → gå till AI-svar (simulerad streaming)
-      const typing = showTypingIndicator();
+      const thinking = appendThinkingIndicator();
       const fullReply = await generateBotReply(text);
-      typing.remove();
+      thinking.remove();
 
-      // “streamad” utskrift
       await typeOutBotMessage(fullReply);
 
       // Spara AI-svaret i bakgrunden
@@ -299,7 +304,7 @@ window.addEventListener("DOMContentLoaded", () => {
           await askNextMissingField(); // fråga nästa
         } else {
           // Klar onboarding → liten bekräftelse och in i nästa fas
-          await typeOutBotMessage("Thanks! I’ve got everything I need. Want me to sketch your next week of training?");
+          await typeOutBotMessage("Thanks! I’ve got what I need. Want me to sketch your next week of training?");
         }
       });
     }
@@ -342,7 +347,7 @@ window.addEventListener("DOMContentLoaded", () => {
     });
 
     bubbleEl.appendChild(wrap);
-    autoScrollIfNeeded(true);
+    scrollToBottom(true);
   }
 
   // ─────────────────────────────────────────────────────
@@ -356,7 +361,7 @@ window.addEventListener("DOMContentLoaded", () => {
       sender,
       text,
       timestamp: serverTimestamp(),
-      clientAt: Date.now()
+      clientAt: Date.now() // stabil lokal tid
     });
   }
 
@@ -367,10 +372,12 @@ window.addEventListener("DOMContentLoaded", () => {
     lastSummaryPayload = { sender, text };
 
     if (summarizeTimer) clearTimeout(summarizeTimer);
+    // Triggera direkt om vi nått batch-gräns
     if (summarizeQueueCount >= SUMMARY_BATCH_N) {
       summarizeNow().catch(e => console.warn("summarizeNow err:", e));
       return;
     }
+    // Annars vänta på inaktivitet
     summarizeTimer = setTimeout(() => {
       summarizeNow().catch(e => console.warn("summarizeNow err:", e));
     }, SUMMARY_IDLE_MS);
@@ -439,7 +446,7 @@ window.addEventListener("DOMContentLoaded", () => {
         return cb - ca;
       });
 
-    const recentList = sorted.slice(0, 5).reverse();
+    const recentList = sorted.slice(0, 5).reverse(); // äldst först i sträng
     const recent = recentList.map(d => `${d.sender}: ${d.text}`).join("\n");
 
     const res = await fetch("/.netlify/functions/ask-gpt", {
@@ -470,29 +477,31 @@ window.addEventListener("DOMContentLoaded", () => {
   // ─────────────────────────────────────────────────────
   // UI helpers: typing indicator + “streamad” utskrift
   // ─────────────────────────────────────────────────────
-  function showTypingIndicator() {
+  function appendThinkingIndicator() {
     const el = document.createElement("div");
-    el.className = "message bot typing";
+    el.className = "message bot";
     el.setAttribute("aria-live", "polite");
-    el.textContent = "AI is typing…";
+    // Tre punkter – blir pulserande om du lägger in CSS
+    el.innerHTML = `
+      <div class="thinking-indicator" role="status" aria-label="AI is typing">
+        <span></span><span></span><span></span>
+      </div>
+    `;
     messages.appendChild(el);
-    autoScrollIfNeeded(true);
-    return {
-      remove: () => el.remove()
-    };
+    scrollToBottom(true);
+    return el;
   }
 
   async function typeOutBotMessage(fullText) {
-    // skapa tom bubble
     const bubble = createMessage("bot", "");
     messages.appendChild(bubble);
-    autoScrollIfNeeded(true);
+    scrollToBottom(true);
 
     // streamad utskrift (simulerad)
-    const minDelay = 8, maxDelay = 22; // känns “levande”
+    const minDelay = 8, maxDelay = 22;
     for (let i = 1; i <= fullText.length; i++) {
       bubble.textContent = fullText.slice(0, i);
-      autoScrollIfNeeded(false);
+      scrollToBottom(false);
       await sleep(rand(minDelay, maxDelay));
     }
     return bubble;
@@ -555,24 +564,22 @@ window.addEventListener("DOMContentLoaded", () => {
   function appendUser(text){
     const el = createMessage("user", text);
     messages.appendChild(el);
-    autoScrollIfNeeded(true);
+    scrollToBottom(true);
     return el;
   }
   function appendBot(text){
     const el = createMessage("bot", text);
     messages.appendChild(el);
-    autoScrollIfNeeded(true);
+    scrollToBottom(true);
     return el;
   }
 
-  function autoScrollIfNeeded(smooth = false){
-    const atBottom = messages.scrollHeight - messages.scrollTop <= messages.clientHeight + 10;
-    if (atBottom) {
-      if (smooth && "scrollTo" in messages) {
-        messages.scrollTo({ top: messages.scrollHeight, behavior: "smooth" });
-      } else {
-        messages.scrollTop = messages.scrollHeight;
-      }
+  // Alltid följ flödet
+  function scrollToBottom(smooth = false){
+    if (smooth && "scrollTo" in messages) {
+      messages.scrollTo({ top: messages.scrollHeight, behavior: "smooth" });
+    } else {
+      messages.scrollTop = messages.scrollHeight;
     }
   }
 
