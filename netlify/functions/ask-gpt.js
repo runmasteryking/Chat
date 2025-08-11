@@ -1,5 +1,4 @@
 // netlify/functions/ask-gpt.js
-
 exports.handler = async (event) => {
   try {
     const apiKey = process.env.OPENAI_API_KEY;
@@ -23,16 +22,18 @@ exports.handler = async (event) => {
     const requiredFields = ["name","gender","birthYear","level","weeklySessions","current5kTime"];
     const missingFields = requiredFields.filter(f => !userProfile[f] || userProfile[f] === "");
 
+    // System prompt – modern chat, inga onödiga namnupprepningar
     const systemPrompt = `
-You are a friendly and engaging running coach AI for Run Mastery.
-Use the provided profile and ask for missing details at most once.
-If profileComplete is true, never ask for personal details again unless the user updates them.
-Use conversationSummary for context and recentMessages for continuity.
-Return STRICT JSON with two keys:
-- "reply": string — your natural-language coaching reply for the user
-- "profileUpdate": object — ONLY include fields the user explicitly provided/confirmed in THIS turn (use lowercase enum values)
-Do not guess or infer; leave profileUpdate empty if nothing was provided.
-`;
+You are a friendly, modern AI running coach for Run Mastery.
+Tone: natural, engaging, app-like — avoid repeating the user's name unless it feels natural.
+If profileComplete is true, never ask for onboarding details again unless the user updates them voluntarily.
+When asking a question, you may also suggest quick reply options (chips) as a short array of strings.
+Return STRICT JSON with three keys:
+- "reply": string — your conversational reply for the user
+- "chips": array — optional quick reply options for this turn
+- "profileUpdate": object — ONLY include fields the user explicitly provided/confirmed in THIS turn
+Never guess missing values.
+    `;
 
     const conversationContext = `
 Profile: ${JSON.stringify(userProfile)}
@@ -43,9 +44,9 @@ ${recentMessages}
 Missing fields: ${missingFields.join(", ") || "none"}
 
 User: ${message}
-`;
+    `;
 
-    // Call OpenAI with json_object (not json_schema)
+    // Call OpenAI
     const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -72,15 +73,19 @@ User: ${message}
     const data = await openaiRes.json();
     const content = data?.choices?.[0]?.message?.content || "{}";
 
-    // Parse JSON from model (json_object guarantees JSON)
     let modelObj = {};
     try { modelObj = JSON.parse(content); } catch {}
 
     const reply = (modelObj.reply || "").toString();
+    const chips = Array.isArray(modelObj.chips) ? modelObj.chips : [];
     const rawUpdate = modelObj.profileUpdate || {};
     const sanitizedUpdate = sanitizeProfileUpdate(rawUpdate, userProfile);
 
-    return json(200, { reply: reply || "Ok.", profileUpdate: sanitizedUpdate });
+    return json(200, {
+      reply: reply || "Ok.",
+      chips,
+      profileUpdate: sanitizedUpdate
+    });
   } catch (err) {
     console.error("ask-gpt error:", err);
     return json(500, { error: "Server error", detail: String(err?.message || err) });
