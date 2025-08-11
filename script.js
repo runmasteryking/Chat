@@ -161,7 +161,7 @@ window.addEventListener("DOMContentLoaded", () => {
 
   inputArea.addEventListener("click", e => { if (e.target !== input) input.focus(); });
   chatWrapper.addEventListener("click", e => {
-    const isClickable = e.target.closest(".fab, .chip, .message");
+    const isClickable = e.target.closest(".fab, .chip, .message, .chip-row, .chip-wrapper");
     if (!isClickable) input.focus();
   });
 
@@ -234,17 +234,64 @@ window.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      // 🚀 Profil komplett → gå till AI-svar (simulerad streaming)
+      // 🚀 Profil komplett → gå till AI-svar
       const thinking = appendThinkingIndicator();
-      const fullReply = await generateBotReply(text);
+      const result = await askServerForReply(text); // <— ändrat: vi hämtar HELA objektet
       thinking.remove();
 
-      await typeOutBotMessage(fullReply);
+      // rendera reply (streamad) och få tillbaka bubble-elementet
+      const bubble = await typeOutBotMessage(result.reply || "Okay.");
 
       // Spara AI-svaret i bakgrunden
-      persist("bot", fullReply);
-      queueSummarize("bot", fullReply);
+      persist("bot", result.reply || "Okay.");
+      queueSummarize("bot", result.reply || "Okay.");
       await persistPromise;
+
+      // uppdatera profil om backend hittade nåt
+      if (result.profileUpdate && Object.keys(result.profileUpdate).length) {
+        Object.assign(userProfileState, result.profileUpdate);
+        await setDoc(doc(db, "users", currentUser.uid), { profile: userProfileState, updatedAt: serverTimestamp() }, { merge: true });
+      }
+
+      // quickReplies från backend (chips-array) – rendera under senaste bot-bubble
+      if (Array.isArray(result.quickReplies) && result.quickReplies.length) {
+        renderServerChips(bubble, result.quickReplies);
+      }
+
+      // roleSuggestion — visa chips för roller (coach/nutrition/strength…)
+      if (result.roleSuggestion && Array.isArray(result.roleSuggestion.options) && result.roleSuggestion.options.length) {
+        renderServerChips(bubble, result.roleSuggestion.options.map(v => ({ label: v, value: v })), async (picked) => {
+          // byt roll lokalt och spara
+          userProfileState.agent = picked;
+          await setDoc(doc(db, "users", currentUser.uid), { profile: userProfileState }, { merge: true });
+          appendBot(`Switched role to ${picked}.`);
+        });
+      }
+
+      // visualCard — t.ex. träningskort
+      if (result.visualCard) {
+        renderVisualCard(result.visualCard);
+      }
+
+      // meta: tags + urgency
+      if ((Array.isArray(result.conversationTags) && result.conversationTags.length) || typeof result.urgencyScore === "number") {
+        await setDoc(
+          doc(db, "users", currentUser.uid),
+          { lastConversationMeta: {
+              tags: result.conversationTags || [],
+              urgency: typeof result.urgencyScore === "number" ? result.urgencyScore : null,
+              updatedAt: serverTimestamp()
+            }
+          },
+          { merge: true }
+        );
+      }
+
+      // nextAction — exekvera enkla åtgärder
+      if (result.nextAction && result.nextAction.type) {
+        await handleNextAction(result.nextAction);
+      }
+
     } catch (err) {
       console.error(err);
       appendBot(`⚠️ ${err.message || "Something went wrong."}`);
@@ -254,7 +301,56 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   // ─────────────────────────────────────────────────────
-  // Onboarding helper – ställ nästa fråga + chips
+  // Kallar backend (ask-gpt) och returnerar HELA svaret
+  // ─────────────────────────────────────────────────────
+  async function askServerForReply(userText) {
+    const uref = doc(db, "users", currentUser.uid);
+    const snap = await getDoc(uref);
+    const summary = snap.data()?.profile?.conversationSummary || "";
+
+    // Hämta senaste meddelanden – sortera robust med fallback till clientAt
+    const msgsCol = collection(db, "users", currentUser.uid, "messages");
+    const qy = query(msgsCol, orderBy("timestamp","desc"), limit(20));
+    const ds = await getDocs(qy);
+
+    const sorted = ds.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => {
+        const ta = a.timestamp?.toMillis?.() || 0;
+        const tb = b.timestamp?.toMillis?.() || 0;
+        if (tb !== ta) return tb - ta;
+        const ca = typeof a.clientAt === "number" ? a.clientAt : 0;
+        const cb = typeof b.clientAt === "number" ? b.clientAt : 0;
+        return cb - ca;
+      });
+
+    const recentList = sorted.slice(0, 5).reverse(); // äldst först i sträng
+    const recent = recentList.map(d => `${d.sender}: ${d.text}`).join("\n");
+
+    const res = await fetch("/.netlify/functions/ask-gpt", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({
+        systemSummary:  summary,
+        recentMessages: recent,
+        message:        userText,
+        userProfile:    { ...userProfileState, name: userProfileState.name || (currentUser?.displayName || null) }
+      })
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      console.error("ask-gpt failed:", res.status, text);
+      throw new Error(`ask-gpt ${res.status}: ${text}`);
+    }
+
+    const data = await res.json();
+    // data: { reply, profileUpdate, quickReplies?, roleSuggestion?, visualCard?, nextAction?, conversationTags?, urgencyScore? }
+    return data;
+  }
+
+  // ─────────────────────────────────────────────────────
+  // Onboarding helper – ställ nästa fråga + chips (client-side)
   // ─────────────────────────────────────────────────────
   async function askNextMissingField() {
     // säkerställ färsk profil igen
@@ -325,6 +421,9 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // ─────────────────────────────────────────────────────
+  // Chips-renderers (client + server)
+  // ─────────────────────────────────────────────────────
   function renderChips(bubbleEl, options, onPick) {
     const wrap = document.createElement("div");
     wrap.className = "chip-row";
@@ -334,20 +433,120 @@ window.addEventListener("DOMContentLoaded", () => {
     wrap.style.marginTop = "8px";
 
     options.forEach(opt => {
+      const label = String(opt);
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "chip";
-      btn.textContent = opt;
+      btn.textContent = label;
       btn.addEventListener("click", () => {
         wrap.querySelectorAll("button").forEach(b => b.disabled = true);
-        onPick(opt);
+        onPick(label);
         wrap.remove();
       });
       wrap.appendChild(btn);
     });
 
-    bubbleEl.appendChild(wrap);
+    (bubbleEl || messages).appendChild(wrap);
     scrollToBottom(true);
+  }
+
+  // server-genererade chips: [{label, value}] eller ["string"]
+  function renderServerChips(bubbleEl, options, customHandler) {
+    const wrap = document.createElement("div");
+    wrap.className = "chip-wrapper";
+    options.forEach(opt => {
+      const label = typeof opt === "string" ? opt : (opt.label || opt.value || "");
+      const value = typeof opt === "string" ? opt : (opt.value ?? opt.label ?? "");
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "chip";
+      btn.textContent = label;
+      btn.addEventListener("click", async () => {
+        wrap.querySelectorAll("button").forEach(b => b.disabled = true);
+        if (typeof customHandler === "function") {
+          await customHandler(value);
+        } else {
+          // default: skicka som user input
+          appendUser(label);
+          persist("user", label);
+          input.value = value;
+          await sendMessage();
+        }
+        wrap.remove();
+      });
+      wrap.appendChild(btn);
+    });
+    (bubbleEl || messages).appendChild(wrap);
+    scrollToBottom(true);
+  }
+
+  // ─────────────────────────────────────────────────────
+  // Visual card renderer
+  // ─────────────────────────────────────────────────────
+  function renderVisualCard(card) {
+    const wrap = document.createElement("div");
+    wrap.className = "visual-card";
+    const imgHtml = card.image ? `<img src="${card.image}" alt="">` : "";
+    const bullets = Array.isArray(card.bullets) && card.bullets.length
+      ? `<ul>${card.bullets.map(b => `<li>${escapeHTML(b)}</li>`).join("")}</ul>` : "";
+    const ctas = Array.isArray(card.ctas) && card.ctas.length
+      ? `<div class="card-ctas">${card.ctas.map(c => `<button class="chip" data-value="${escapeHTML(c.value||c.label||"")}">${escapeHTML(c.label||c.value||"OK")}</button>`).join("")}</div>`
+      : "";
+
+    wrap.innerHTML = `
+      ${imgHtml}
+      <div class="card-body">
+        <h4>${escapeHTML(card.title || "Info")}</h4>
+        ${card.description ? `<p>${escapeHTML(card.description)}</p>` : ""}
+        ${bullets}
+        ${ctas}
+      </div>
+    `;
+    messages.appendChild(wrap);
+
+    // CTA-klick
+    wrap.querySelectorAll(".card-ctas .chip").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const val = btn.getAttribute("data-value") || btn.textContent;
+        appendUser(btn.textContent);
+        persist("user", btn.textContent);
+        input.value = val;
+        await sendMessage();
+      });
+    });
+
+    scrollToBottom(true);
+  }
+
+  function escapeHTML(s){
+    return String(s).replace(/[&<>"']/g, m => ({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+    }[m]));
+  }
+
+  // ─────────────────────────────────────────────────────
+  // nextAction handler (enkla exempel)
+  // ─────────────────────────────────────────────────────
+  async function handleNextAction(action) {
+    switch (action.type) {
+      case "startTrainingPlan":
+        appendBot("Starting your training plan…");
+        // här kan du trigga UI för plan-byggare osv.
+        break;
+      case "askFollowUp":
+        if (action.payload?.question) {
+          const bubble = appendBot(action.payload.question);
+          // ev. rendera chips från payload.options
+          if (Array.isArray(action.payload.options) && action.payload.options.length) {
+            renderServerChips(bubble, action.payload.options);
+          }
+        }
+        break;
+      default:
+        // okänd action → visa som text
+        if (action.label) appendBot(action.label);
+        break;
+    }
   }
 
   // ─────────────────────────────────────────────────────
@@ -423,65 +622,12 @@ window.addEventListener("DOMContentLoaded", () => {
   }
 
   // ─────────────────────────────────────────────────────
-  // AI (reply) – hämtar senaste kontext och kallar ask-gpt
-  // ─────────────────────────────────────────────────────
-  async function generateBotReply(userText) {
-    const uref = doc(db, "users", currentUser.uid);
-    const snap = await getDoc(uref);
-    const summary = snap.data()?.profile?.conversationSummary || "";
-
-    // Hämta senaste meddelanden – sortera robust med fallback till clientAt
-    const msgsCol = collection(db, "users", currentUser.uid, "messages");
-    const qy = query(msgsCol, orderBy("timestamp","desc"), limit(20));
-    const ds = await getDocs(qy);
-
-    const sorted = ds.docs
-      .map(d => ({ id: d.id, ...d.data() }))
-      .sort((a, b) => {
-        const ta = a.timestamp?.toMillis?.() || 0;
-        const tb = b.timestamp?.toMillis?.() || 0;
-        if (tb !== ta) return tb - ta;
-        const ca = typeof a.clientAt === "number" ? a.clientAt : 0;
-        const cb = typeof b.clientAt === "number" ? b.clientAt : 0;
-        return cb - ca;
-      });
-
-    const recentList = sorted.slice(0, 5).reverse(); // äldst först i sträng
-    const recent = recentList.map(d => `${d.sender}: ${d.text}`).join("\n");
-
-    const res = await fetch("/.netlify/functions/ask-gpt", {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({
-        systemSummary:  summary,
-        recentMessages: recent,
-        message:        userText,
-        userProfile:    { ...userProfileState, name: userProfileState.name || (currentUser?.displayName || null) }
-      })
-    });
-
-    if (!res.ok) {
-      const text = await res.text();
-      console.error("ask-gpt failed:", res.status, text);
-      throw new Error(`ask-gpt ${res.status}: ${text}`);
-    }
-
-    const data = await res.json();
-    if (data.profileUpdate && Object.keys(data.profileUpdate).length) {
-      Object.assign(userProfileState, data.profileUpdate);
-      await setDoc(uref, { profile: userProfileState, updatedAt: serverTimestamp() }, { merge: true });
-    }
-    return data.reply || "";
-  }
-
-  // ─────────────────────────────────────────────────────
   // UI helpers: typing indicator + “streamad” utskrift
   // ─────────────────────────────────────────────────────
   function appendThinkingIndicator() {
     const el = document.createElement("div");
     el.className = "message bot";
     el.setAttribute("aria-live", "polite");
-    // Tre punkter – blir pulserande om du lägger in CSS
     el.innerHTML = `
       <div class="thinking-indicator" role="status" aria-label="AI is typing">
         <span></span><span></span><span></span>
