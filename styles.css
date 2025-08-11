@@ -12,21 +12,21 @@
 
   --radius-sm:8px;
   --radius-md:16px;
-  --radius-lg:24px;               /* was 28 */
+  --radius-lg:24px;
   --radius-pill:9999px;
 
   --space-2:8px;
   --space-3:12px;
   --space-4:16px;
-  --space-5:20px;                 /* new */
+  --space-5:20px;
   --space-6:24px;
   --space-8:32px;
   --space-12:48px;
 
   --font-sans:'Manrope',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
-  --fz-body:16px;                 /* base text */
-  --fz-chip:13.5px;               /* was 14 */
-  --fz-msg:15px;                  /* was 16 */
+  --fz-body:16px;
+  --fz-chip:13.5px;
+  --fz-msg:15px;
   --lh:1.6;
 }
 
@@ -44,7 +44,7 @@ html,body{
   line-height:var(--lh);
   color:var(--clr-text);
   background:radial-gradient(1200px 600px at 50% 10%,#fffef4 0%,var(--clr-bg-end) 40%,var(--clr-bg-start) 100%);
-  overflow-anchor: none; /* stop scroll jumps */
+  overflow-anchor: none;
 }
 
 /* ─────────────────────────────────────────────────────────
@@ -53,12 +53,12 @@ html,body{
 header{
   position:absolute; inset:0 0 auto 0; z-index:100;
   display:flex; justify-content:space-between; align-items:center;
-  padding:var(--space-4) var(--space-6);     /* was space-8 */
+  padding:var(--space-4) var(--space-6);
   background:transparent;
 }
 .brand{display:flex;align-items:center;gap:var(--space-3);white-space:nowrap}
 .brand-logo{width:38px;height:38px;border-radius:var(--radius-pill);background:var(--clr-primary);object-fit:cover}
-.brand-title{font-weight:800;letter-spacing:-0.02em;font-size:clamp(18px,2vw,22px)} /* a touch smaller */
+.brand-title{font-weight:800;letter-spacing:-0.02em;font-size:clamp(18px,2vw,22px)}
 
 #user-area{display:flex;align-items:center;gap:var(--space-3)}
 #loginBtn,#userName{
@@ -72,14 +72,13 @@ header{
 ──────────────────────────────────────────────────────────*/
 body>.intro, body>.chat-container{display:grid;justify-items:center}
 .intro{
-  /* slightly less top push so everything fits at 100% */
   padding-top: calc(clamp(64px,12vh,110px) + 8vh);
   padding-bottom: 6px;
   text-align:center;
 }
 .intro h1{
   font-weight:800;letter-spacing:-0.02em;
-  font-size:clamp(34px,5.5vw,56px);          /* was up to 64px */
+  font-size:clamp(34px,5.5vw,56px);
   margin-bottom:6px
 }
 .intro p{color:var(--clr-text-muted);font-size:clamp(15px,1.5vw,18px)}
@@ -89,15 +88,15 @@ body>.intro, body>.chat-container{display:grid;justify-items:center}
 ──────────────────────────────────────────────────────────*/
 .chat-container{
   width:100%;
-  margin-top: 28px;                           /* was 40px */
+  margin-top: 28px;
   padding:0 var(--space-4) var(--space-12)
 }
 #chat-wrapper{
-  width:min(860px,92vw);                      /* was 980px */
+  width:min(860px,92vw);
   margin:0 auto; background:var(--clr-white);
   border:1px solid rgba(17,17,17,.08);
   border-radius:var(--radius-lg);
-  box-shadow:0 1px 6px rgba(0,0,0,0.05);      /* subtler */
+  box-shadow:0 1px 6px rgba(0,0,0,0.05);
   display:flex; flex-direction:column; overflow:hidden;
 }
 
@@ -105,23 +104,25 @@ body>.intro, body>.chat-container{display:grid;justify-items:center}
 #messages{
   display:flex; flex-direction:column; gap:10px;
   padding: var(--space-4) var(--space-4) var(--space-5);
-  min-height:220px;                           /* was 300 */
-  max-height:320px;                           /* was 340 */
-  overflow-y:auto; background:var(--clr-white);
+  min-height:220px;
+  max-height:320px;
+  overflow-y:auto;
+  background:var(--clr-white);
   cursor:text;
+  scroll-behavior:smooth;
 }
 
 /* Input-området */
 #input-area{border-top:0; background:var(--clr-white); padding:0}
-.chat-inner{padding:6px 14px 0 14px}          /* was 8/16 */
+.chat-inner{padding:6px 14px 0 14px}
 
-/* Textarea – fast höjd, kompakt */
+/* Textarea */
 #input-area textarea{
   width:100%; display:block;
   border:0; outline:0; background:transparent;
   font-size:16px; line-height:1.45; color:var(--clr-text);
   padding:8px 10px; border-radius:0; resize:none;
-  height:40px;                                 /* was 44 */
+  height:40px;
   overflow:auto; white-space:normal; text-overflow:clip;
 }
 #input-area textarea::placeholder{color:rgba(0,0,0,0.40)}
@@ -129,50 +130,99 @@ body>.intro, body>.chat-container{display:grid;justify-items:center}
 /* Actions */
 .chat-actions{
   display:grid; grid-template-columns:1fr auto;
-  align-items:center; gap:6px;                 /* was 8px */
-  padding:6px 8px;                             /* was 8px */
+  align-items:center; gap:6px;
+  padding:6px 8px;
   border-top:1px solid rgba(0,0,0,0.05); margin-top:4px;
 }
 .actions-left{min-width:0; display:flex; gap:6px; flex-wrap:nowrap}
 .actions-right{display:flex; gap:6px; justify-self:end; flex-wrap:nowrap}
 
-/* Chips/knappar – mindre */
+/* ─────────────────────────────────────────────────────────
+   Chips/knappar
+──────────────────────────────────────────────────────────*/
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
 .chip{
   display:inline-flex;align-items:center;
-  height:32px;                                 /* was 36 */
-  padding:0 12px;                              /* was 14 */
-  border-radius:9999px;border:1px solid rgba(0,0,0,.12);
+  height:32px;
+  padding:0 var(--space-3);
+  border-radius:var(--radius-pill);
+  border:1px solid rgba(0,0,0,.12);
   background:#fff;font-weight:600;
-  font-size:var(--fz-chip); color:#111;cursor:pointer;white-space:nowrap
+  font-size:var(--fz-chip); color:#111;cursor:pointer;white-space:nowrap;
+  transition: background-color 0.2s, box-shadow 0.2s;
 }
-.chip:hover{background:#fafafa}
+.chip:hover{background:#fafafa; box-shadow: 0 1px 3px rgba(0,0,0,0.08);}
 .chip-icon{width:32px;padding:0;justify-content:center;font-size:16px}
 .chip-muted{border:0;background:rgba(0,0,0,.06);color:#333;font-weight:600;white-space:nowrap}
 
-/* Send-knapp – mindre */
+/* ─────────────────────────────────────────────────────────
+   Skicka-knapp
+──────────────────────────────────────────────────────────*/
 .fab{
-  width:34px;height:34px;border-radius:9999px;border:0;
+  width:34px;height:34px;border-radius:var(--radius-pill);border:0;
   background:#111;color:#fff;display:grid;place-items:center;
   cursor:pointer;transition:background .15s ease, transform .05s ease
 }
 .fab:hover{background:#000}
 .fab:active{transform:translateY(1px)}
 
-/* Bubbles – lite mindre text och padding */
+/* ─────────────────────────────────────────────────────────
+   Meddelanden
+──────────────────────────────────────────────────────────*/
 .message{
   max-width:76%;
-  padding:8px 12px;                            /* was 10/14 */
-  border-radius:16px;                           /* was 18 */
+  padding:8px 12px;
+  border-radius:16px;
   font-size:var(--fz-msg);
   box-shadow:0 1px 3px rgba(0,0,0,0.04);
   opacity:0; transform:translateY(8px);
-  animation:fadeIn .25s ease forwards;         /* slightly snappier */
+  animation:fadeIn .25s ease forwards;
+  white-space: pre-wrap;
+  word-wrap: break-word;
 }
 @keyframes fadeIn{to{opacity:1;transform:translateY(0)}}
 .message.user{align-self:flex-end;background:#fff;border:1px solid rgba(0,0,0,.06)}
 .message.bot{align-self:flex-start;background:#FFF6BF}
 
-/* Responsive */
+/* ─────────────────────────────────────────────────────────
+   Pulsande AI-tänker-indikator
+──────────────────────────────────────────────────────────*/
+.thinking-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: var(--space-3) var(--space-4);
+}
+.thinking-indicator span {
+  width: 8px;
+  height: 8px;
+  background-color: var(--clr-text);
+  border-radius: var(--radius-pill);
+  animation: pulse 1.4s infinite ease-in-out;
+}
+.thinking-indicator span:nth-child(1) { animation-delay: 0s; }
+.thinking-indicator span:nth-child(2) { animation-delay: 0.2s; }
+.thinking-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes pulse {
+  0%, 80%, 100% {
+    transform: scale(0.8);
+    opacity: 0.4;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────
+   Responsive
+──────────────────────────────────────────────────────────*/
 @media (max-width:640px){
   .brand-logo{width:34px;height:34px}
   #chat-wrapper{width:min(100%,94vw);border-radius:20px}
@@ -181,7 +231,6 @@ body>.intro, body>.chat-container{display:grid;justify-items:center}
   #messages{max-height:300px}
 }
 
-/* Height-aware compact mode (common laptop screens) */
 @media (max-height:820px){
   .intro{
     padding-top: calc(clamp(56px,10vh,96px) + 6vh);
@@ -191,11 +240,10 @@ body>.intro, body>.chat-container{display:grid;justify-items:center}
   #messages{ min-height:200px; max-height:300px; }
 }
 
-/* Final overrides */
+/* ─────────────────────────────────────────────────────────
+   Final overrides
+──────────────────────────────────────────────────────────*/
 #input-area{display:block !important}
 #input-area .chat-inner{width:100% !important}
 #user-area,#userName,#loginBtn{white-space:nowrap !important}
-/* Dölj heron utan att ta bort höjden (hindrar hopp i layouten) */
-.intro-hidden {
-  visibility: hidden; /* sektionen behåller höjden i layouten */
-}
+.intro-hidden { visibility: hidden; }
