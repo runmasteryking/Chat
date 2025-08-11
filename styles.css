@@ -48,7 +48,7 @@ html,body{
 }
 
 /* ─────────────────────────────────────────────────────────
-   Header – transparent
+   Header
 ──────────────────────────────────────────────────────────*/
 header{
   position:absolute; inset:0 0 auto 0; z-index:100;
@@ -68,9 +68,8 @@ header{
 #loginBtn:hover,#userName:hover{opacity:.9}
 
 /* ─────────────────────────────────────────────────────────
-   Hero
+   Intro
 ──────────────────────────────────────────────────────────*/
-body>.intro, body>.chat-container{display:grid;justify-items:center}
 .intro{
   padding-top: calc(clamp(64px,12vh,110px) + 8vh);
   padding-bottom: 6px;
@@ -111,6 +110,22 @@ body>.intro, body>.chat-container{display:grid;justify-items:center}
   cursor:text;
   scroll-behavior:smooth;
 }
+#messages.has-shadow-top::before,
+#messages.has-shadow-bottom::after {
+  content:"";
+  position:sticky;
+  left:0; right:0;
+  height:12px;
+  z-index:5;
+}
+#messages.has-shadow-top::before {
+  top:0;
+  background:linear-gradient(to bottom, rgba(0,0,0,0.08), transparent);
+}
+#messages.has-shadow-bottom::after {
+  bottom:0;
+  background:linear-gradient(to top, rgba(0,0,0,0.08), transparent);
+}
 
 /* Input-området */
 #input-area{border-top:0; background:var(--clr-white); padding:0}
@@ -138,7 +153,7 @@ body>.intro, body>.chat-container{display:grid;justify-items:center}
 .actions-right{display:flex; gap:6px; justify-self:end; flex-wrap:nowrap}
 
 /* ─────────────────────────────────────────────────────────
-   Chips/knappar
+   Chips / Snabba svar
 ──────────────────────────────────────────────────────────*/
 .chips {
   display: flex;
@@ -157,8 +172,27 @@ body>.intro, body>.chat-container{display:grid;justify-items:center}
   transition: background-color 0.2s, box-shadow 0.2s;
 }
 .chip:hover{background:#fafafa; box-shadow: 0 1px 3px rgba(0,0,0,0.08);}
-.chip-icon{width:32px;padding:0;justify-content:center;font-size:16px}
-.chip-muted{border:0;background:rgba(0,0,0,.06);color:#333;font-weight:600;white-space:nowrap}
+
+/* ─────────────────────────────────────────────────────────
+   Role Suggestions (nytt)
+──────────────────────────────────────────────────────────*/
+.role-suggestions {
+  display:flex;
+  gap:var(--space-2);
+  margin-top:var(--space-2);
+}
+.role-btn {
+  flex:1;
+  background:var(--clr-primary);
+  border:none;
+  padding:8px 14px;
+  font-weight:700;
+  font-size:var(--fz-chip);
+  border-radius:var(--radius-pill);
+  cursor:pointer;
+  transition:background 0.2s ease;
+}
+.role-btn:hover { background:var(--clr-primary-alt); }
 
 /* ─────────────────────────────────────────────────────────
    Skicka-knapp
@@ -189,13 +223,32 @@ body>.intro, body>.chat-container{display:grid;justify-items:center}
 .message.user{align-self:flex-end;background:#fff;border:1px solid rgba(0,0,0,.06)}
 .message.bot{align-self:flex-start;background:#FFF6BF}
 
+/* Visual Card för AI */
+.visual-card {
+  background:#fff;
+  border-radius:var(--radius-md);
+  border:1px solid rgba(0,0,0,0.08);
+  padding:var(--space-4);
+  margin-top:var(--space-2);
+  box-shadow:0 2px 6px rgba(0,0,0,0.05);
+}
+.visual-card h4 {
+  font-weight:800;
+  margin-bottom:4px;
+}
+.visual-card p {
+  font-size:14px;
+  color:var(--clr-text-muted);
+}
+
 /* ─────────────────────────────────────────────────────────
-   Pulsande AI-tänker-indikator
+   Pulsande AI-indikator
 ──────────────────────────────────────────────────────────*/
 .thinking-indicator {
   display: flex;
+  justify-content:center;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   padding: var(--space-3) var(--space-4);
 }
 .thinking-indicator span {
@@ -210,14 +263,8 @@ body>.intro, body>.chat-container{display:grid;justify-items:center}
 .thinking-indicator span:nth-child(3) { animation-delay: 0.4s; }
 
 @keyframes pulse {
-  0%, 80%, 100% {
-    transform: scale(0.8);
-    opacity: 0.4;
-  }
-  40% {
-    transform: scale(1);
-    opacity: 1;
-  }
+  0%, 80%, 100% { transform: scale(0.8); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
 }
 
 /* ─────────────────────────────────────────────────────────
@@ -228,6 +275,7 @@ body>.intro, body>.chat-container{display:grid;justify-items:center}
   #chat-wrapper{width:min(100%,94vw);border-radius:20px}
   .fab{width:32px;height:32px}
   .chip{height:30px;font-size:13px}
+  .role-btn { font-size:13px; padding:6px 12px; }
   #messages{max-height:300px}
 }
 
