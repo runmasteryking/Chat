@@ -1,26 +1,24 @@
-let chatWrapper, intro, messages, inputArea;
+// ui/layout.js
+import { els, cacheDom as cacheDomRefs } from './dom.js';
 
-export function cacheDom(){
-  chatWrapper = document.getElementById('chat-wrapper');
-  intro       = document.getElementById('intro');
-  messages    = document.getElementById('messages');
-  inputArea   = document.getElementById('input-area');
+// Hämtar och sparar referenserna
+export function cacheDom() {
+  cacheDomRefs();
 }
 
-export function showAfterLogin(){
-  document.getElementById('loginBtn')?.style?.setProperty('display','none');
-  document.getElementById('userInfo')?.style?.setProperty('display','flex');
-  chatWrapper.style.display = 'flex';
-  messages.style.display    = 'flex';
-  inputArea.style.display   = 'block';
+export function showAfterLogin() {
+  els.loginBtn?.style?.setProperty('display', 'none');
+  els.userInfo?.style?.setProperty('display', 'flex');
+  els.chatWrapper.style.display = 'flex';
+  els.messages.style.display = 'flex';
+  els.inputArea.style.display = 'block';
 }
 
-export function expandToFullscreen(){
+export function expandToFullscreen() {
   // Lägg gärna till CSS-klassen .chat--fullscreen med transition i din CSS
-  chatWrapper.classList.add('chat--expanding');
-  // microtask → låt layouten hämta andan
+  els.chatWrapper.classList.add('chat--expanding');
   requestAnimationFrame(() => {
-    chatWrapper.classList.add('chat--fullscreen');
-    chatWrapper.classList.remove('chat--expanding');
+    els.chatWrapper.classList.add('chat--fullscreen');
+    els.chatWrapper.classList.remove('chat--expanding');
   });
 }
