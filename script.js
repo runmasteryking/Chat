@@ -19,16 +19,16 @@ import {
 
 window.addEventListener("DOMContentLoaded", () => {
   // ── DOM
-  const loginBtn    = document.getElementById("loginBtn");
-  const chatWrapper = document.getElementById("chat-wrapper");
-  const intro       = document.getElementById("intro");
-  const messages    = document.getElementById("messages");
-  const inputArea   = document.getElementById("input-area");
-  const input       = document.getElementById("userInput");
-  const sendBtn     = document.getElementById("sendBtn");
-  const userInfo    = document.getElementById("userInfo");
-  const userName    = document.getElementById("userName");
-  const newThreadBtn= document.getElementById("newThreadBtn");
+  const loginBtn     = document.getElementById("loginBtn");
+  const chatWrapper  = document.getElementById("chat-wrapper");
+  const intro        = document.getElementById("intro");
+  const messages     = document.getElementById("messages");
+  const inputArea    = document.getElementById("input-area");
+  const input        = document.getElementById("userInput");
+  const sendBtn      = document.getElementById("sendBtn");
+  const userInfo     = document.getElementById("userInfo");
+  const userName     = document.getElementById("userName");
+  const newThreadBtn = document.getElementById("newThreadBtn");
 
   // ── State
   let currentUser = null;
@@ -36,7 +36,10 @@ window.addEventListener("DOMContentLoaded", () => {
   let isSending = false;
   let lastSendAt = 0;
 
-  // Debounce state for summaries
+  // Vilket profilfält väntar vi svar på?
+  let pendingProfileKey = null;
+
+  // Debounce state för summaries
   let summarizeTimer = null;
   let summarizeDirty = false;
   let summarizeQueueCount = 0;
@@ -84,6 +87,13 @@ window.addEventListener("DOMContentLoaded", () => {
   async function handleUserLoggedIn(user) {
     currentUser = user;
     await loadProfile(user.uid);
+
+    // Om displayName finns och vi saknar name → använd det direkt
+    if (!userProfileState.name && user.displayName) {
+      userProfileState.name = user.displayName;
+      await setDoc(doc(db, "users", currentUser.uid), { profile: userProfileState }, { merge: true });
+    }
+
     showUserInfo(user);
     showChatUI();
   }
@@ -121,8 +131,9 @@ window.addEventListener("DOMContentLoaded", () => {
         // Nollställ lokalt
         messages.innerHTML = "";
         firstMessageSent = false;
+        pendingProfileKey = null;
 
-        // Visa intro igen (valfritt: ta bort om du vill behålla den dold)
+        // Visa intro igen (valfritt)
         if (intro) intro.classList.remove("intro-hidden");
 
         // Nollställ summary i state + Firestore
@@ -179,20 +190,49 @@ window.addEventListener("DOMContentLoaded", () => {
       queueSummarize("user", text); // debounced
       input.value = "";
 
-      // 🔹 Fråga bara om det saknas fält i profilen
-      if (!userProfileState.profileComplete) {
-        const missingField = profileQuestions.find(q => !userProfileState[q.key]);
-        if (missingField) {
-          appendBot(missingField.question);
-          await persist("bot", missingField.question);
-          queueSummarize("bot", missingField.question); // debounced
-          return;
-        } else {
-          userProfileState.profileComplete = true;
-          await setDoc(doc(db, "users", currentUser.uid), { profile: userProfileState }, { merge: true });
+      // 🆕 Läs in färsk profil innan vi bestämmer nästa steg
+      if (currentUser) {
+        const fresh = await getDoc(doc(db, "users", currentUser.uid));
+        if (fresh.exists() && fresh.data().profile) {
+          Object.assign(userProfileState, fresh.data().profile);
         }
       }
 
+      // Om vi väntade på svar för ett specifikt profilfält – spara nu
+      if (pendingProfileKey) {
+        const val = normalizeAnswer(pendingProfileKey, text);
+        if (val !== null) {
+          userProfileState[pendingProfileKey] = val;
+
+          // uppdatera display i UI om namnet sattes
+          if (pendingProfileKey === "name" && userName) {
+            userName.textContent = val;
+          }
+
+          await setDoc(doc(db, "users", currentUser.uid), { profile: userProfileState }, { merge: true });
+        }
+        pendingProfileKey = null;
+      }
+
+      // Kolla om profilen nu är komplett
+      const requiredFields = ["name", "gender", "birthYear", "level", "weeklySessions", "current5kTime"];
+      const missing = requiredFields.filter(f => !userProfileState[f]);
+      userProfileState.profileComplete = missing.length === 0;
+
+      // Om inte komplett → fråga precis nästa sak som saknas
+      if (!userProfileState.profileComplete) {
+        const nextField = profileQuestions.find(q => !userProfileState[q.key]);
+        if (nextField) {
+          pendingProfileKey = nextField.key;
+          appendBot(nextField.question);
+          await persist("bot", nextField.question);
+          queueSummarize("bot", nextField.question); // debounced
+          isSending = false;
+          return; // fråga en sak i taget
+        }
+      }
+
+      // 🚀 Profil komplett → gå direkt till AI-svar (nästa fas)
       const thinking = createMessage("bot", "…", "thinking");
       messages.appendChild(thinking);
       autoScrollIfNeeded(true);
@@ -313,7 +353,7 @@ window.addEventListener("DOMContentLoaded", () => {
         systemSummary:  summary,
         recentMessages: recent,
         message:        userText,
-        userProfile:    { ...userProfileState, name: userProfileState.name || currentUser.displayName }
+        userProfile:    { ...userProfileState, name: userProfileState.name || (currentUser?.displayName || null) }
       })
     });
 
@@ -355,6 +395,55 @@ window.addEventListener("DOMContentLoaded", () => {
       } else {
         messages.scrollTop = messages.scrollHeight;
       }
+    }
+  }
+
+  // ── Normaliserar profil-svar
+  function normalizeAnswer(key, raw) {
+    const s = String(raw || "").trim();
+
+    switch (key) {
+      case "name":
+        return s.length ? s.slice(0, 50) : null;
+
+      case "gender": {
+        const g = s.toLowerCase();
+        if (["male","man","m","kille","pojke","herr","h"].includes(g)) return "male";
+        if (["female","woman","f","tjej","flicka","dam","d"].includes(g)) return "female";
+        if (["other","annan","övrigt","non-binary","nb"].includes(g)) return "other";
+        return null;
+      }
+
+      case "birthYear": {
+        const y = parseInt(s, 10);
+        return (y >= 1940 && y <= 2015) ? y : null;
+      }
+
+      case "level": {
+        const l = s.toLowerCase();
+        if (["beginner","nybörjare"].includes(l)) return "beginner";
+        if (["intermediate","medel","medelvan"].includes(l)) return "intermediate";
+        if (["advanced","avancerad","erfaren"].includes(l)) return "advanced";
+        return null;
+      }
+
+      case "weeklySessions": {
+        const n = parseInt(s, 10);
+        return (n >= 1 && n <= 14) ? n : null;
+      }
+
+      case "current5kTime": {
+        const t = s.replace(/\s+/g, "");
+        const mmss = /^[0-5]?\d:[0-5]\d$/;          // MM:SS
+        const hmmss = /^\d{1,2}:[0-5]?\d:[0-5]\d$/; // H:MM:SS / HH:MM:SS
+        if (mmss.test(t)) return `00:${t.padStart(5, "0")}`;
+        if (hmmss.test(t)) return t.split(":").map(p => p.padStart(2, "0")).join(":");
+        return null;
+      }
+
+      // valfritt: fler fält (injuryNotes, raceComingUp etc)
+      default:
+        return s || null;
     }
   }
 });
