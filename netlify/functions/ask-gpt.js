@@ -1,11 +1,13 @@
 // netlify/functions/ask-gpt.js
+// 🚀 Future-ready AI endpoint for Run Mastery
+
 exports.handler = async (event) => {
   try {
     const apiKey = process.env.OPENAI_API_KEY;
     const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
     if (!apiKey) return json(500, { error: "Server misconfiguration: missing API key" });
 
-    // Parse body
+    // Parse incoming body
     let body;
     try { body = JSON.parse(event.body || "{}"); }
     catch { return json(400, { error: "Invalid JSON" }); }
@@ -14,37 +16,52 @@ exports.handler = async (event) => {
       message = "",
       userProfile = {},
       systemSummary = "",
-      recentMessages = ""
+      recentMessages = "",
+      longTermMemory = "" // 🔹 from Firestore, preloaded before call
     } = body;
 
     if (!message) return json(400, { error: "Missing user message" });
 
-    const requiredFields = ["name","gender","birthYear","level","weeklySessions","current5kTime"];
+    // Identify missing onboarding fields
+    const requiredFields = ["name", "gender", "birthYear", "level", "weeklySessions", "current5kTime"];
     const missingFields = requiredFields.filter(f => !userProfile[f] || userProfile[f] === "");
 
-    // System prompt – modern chat, inga onödiga namnupprepningar
+    // System prompt with future-ready capabilities
     const systemPrompt = `
-You are a friendly, modern AI running coach for Run Mastery.
-Tone: natural, engaging, app-like — avoid repeating the user's name unless it feels natural.
-If profileComplete is true, never ask for onboarding details again unless the user updates them voluntarily.
-When asking a question, you may also suggest quick reply options (chips) as a short array of strings.
-Return STRICT JSON with three keys:
-- "reply": string — your conversational reply for the user
-- "chips": array — optional quick reply options for this turn
-- "profileUpdate": object — ONLY include fields the user explicitly provided/confirmed in THIS turn
-Never guess missing values.
-    `;
+You are Run Mastery's AI — a next-gen running coach with adaptive personality and memory.
+Goals:
+1. Personalize based on userProfile, systemSummary, recentMessages, and longTermMemory.
+2. Always keep continuity: if onboarding is incomplete, ask for missing details naturally and only once.
+3. Dynamically adapt your persona based on userProfile.role (default: "coach").
+   Roles can be: "coach", "race_strategist", "nutritionist", "injury_specialist".
+4. Be proactive: if profileComplete is true, guide the user toward training plans, race strategies, or motivation.
+5. Tone adapts to user mood: detect if they are tired, excited, frustrated — adjust style accordingly.
+6. You can return multimodal UI blocks (visualCard) to help the frontend display structured info.
+7. Always return STRICT JSON with these keys:
+{
+  "reply": string,                  // Main text reply for the user
+  "profileUpdate": object,          // Only include fields explicitly given/confirmed in THIS turn
+  "roleSuggestion": string|null,    // Suggested role change, if relevant
+  "visualCard": object|null,        // Optional UI component { type, title, subtitle, data }
+  "nextAction": string|null,        // What frontend should do next ("suggest_workout", "ask_followup", etc.)
+  "conversationTags": array,        // Topics detected in this reply
+  "urgencyScore": number            // 0.0–1.0, how urgent/important the AI thinks the matter is
+}
+- profileUpdate must follow validation rules (e.g. gender in [male,female,other]).
+- Do not hallucinate values; only include explicit info from the user.
+`;
 
     const conversationContext = `
-Profile: ${JSON.stringify(userProfile)}
-Conversation summary: ${systemSummary}
-Recent messages:
+User Profile: ${JSON.stringify(userProfile)}
+Long-term Memory: ${longTermMemory || "none"}
+Conversation Summary: ${systemSummary}
+Recent Messages:
 ${recentMessages}
 
-Missing fields: ${missingFields.join(", ") || "none"}
+Missing Fields: ${missingFields.join(", ") || "none"}
 
-User: ${message}
-    `;
+User says: ${message}
+`;
 
     // Call OpenAI
     const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -59,7 +76,7 @@ User: ${message}
           { role: "system", content: systemPrompt },
           { role: "user", content: conversationContext }
         ],
-        temperature: 0.7,
+        temperature: 0.75,
         response_format: { type: "json_object" }
       })
     });
@@ -73,39 +90,52 @@ User: ${message}
     const data = await openaiRes.json();
     const content = data?.choices?.[0]?.message?.content || "{}";
 
+    // Parse JSON from model
     let modelObj = {};
-    try { modelObj = JSON.parse(content); } catch {}
+    try { modelObj = JSON.parse(content); } catch (err) {
+      console.error("Failed to parse AI JSON:", err, content);
+    }
 
+    // Sanitize profile updates
     const reply = (modelObj.reply || "").toString();
-    const chips = Array.isArray(modelObj.chips) ? modelObj.chips : [];
     const rawUpdate = modelObj.profileUpdate || {};
     const sanitizedUpdate = sanitizeProfileUpdate(rawUpdate, userProfile);
 
     return json(200, {
-      reply: reply || "Ok.",
-      chips,
-      profileUpdate: sanitizedUpdate
+      reply: reply || "Okay.",
+      profileUpdate: sanitizedUpdate,
+      roleSuggestion: modelObj.roleSuggestion || null,
+      visualCard: modelObj.visualCard || null,
+      nextAction: modelObj.nextAction || null,
+      conversationTags: Array.isArray(modelObj.conversationTags) ? modelObj.conversationTags : [],
+      urgencyScore: typeof modelObj.urgencyScore === "number" ? modelObj.urgencyScore : 0.0
     });
+
   } catch (err) {
     console.error("ask-gpt error:", err);
     return json(500, { error: "Server error", detail: String(err?.message || err) });
   }
 };
 
-// helpers
+// Helpers
 function json(statusCode, obj) {
-  return { statusCode, headers: { "Content-Type": "application/json" }, body: JSON.stringify(obj) };
+  return {
+    statusCode,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(obj)
+  };
 }
 
 function sanitizeProfileUpdate(update, existing) {
   const out = {};
   const allowIfMissing = (k) => !existing?.[k];
 
-  if (allowIfMissing("name") && isNonEmptyString(update.name, 50)) out.name = String(update.name).trim();
+  if (allowIfMissing("name") && isNonEmptyString(update.name, 50))
+    out.name = String(update.name).trim();
 
   if (allowIfMissing("gender")) {
     const g = String(update.gender || "").toLowerCase();
-    if (["male","female","other"].includes(g)) out.gender = g;
+    if (["male", "female", "other"].includes(g)) out.gender = g;
   }
 
   if (allowIfMissing("birthYear")) {
@@ -115,7 +145,7 @@ function sanitizeProfileUpdate(update, existing) {
 
   if (allowIfMissing("level")) {
     const lvl = String(update.level || "").toLowerCase();
-    if (["beginner","intermediate","advanced"].includes(lvl)) out.level = lvl;
+    if (["beginner", "intermediate", "advanced"].includes(lvl)) out.level = lvl;
   }
 
   if (allowIfMissing("weeklySessions")) {
@@ -142,7 +172,7 @@ function isValidTime(s) {
   return mmss.test(s) || hmmss.test(s);
 }
 function normalizeTime(s) {
-  if (/^[0-5]?\d:[0-5]\d$/.test(s)) return `00:${s.padStart(5,"0")}`;
-  const parts = s.split(":").map(p => p.padStart(2,"0"));
+  if (/^[0-5]?\d:[0-5]\d$/.test(s)) return `00:${s.padStart(5, "0")}`;
+  const parts = s.split(":").map(p => p.padStart(2, "0"));
   return parts.length === 3 ? parts.join(":") : s;
 }
